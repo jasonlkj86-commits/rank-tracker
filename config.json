@@ -21,9 +21,10 @@
       ]
     },
     {
-      "id": "4617265992",
+      "id": "56630496295",
       "name": "스텐 도로명주소현판",
-      "store_id": "minimalsign",
+      "store_id": "naver-catalog",
+      "type": "catalog",
       "keywords": [
         "건물번호판",
         "자율형건물번호판",
