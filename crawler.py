@@ -1,115 +1,108 @@
 """
-📦 스마트스토어 키워드 순위 추적기 - 크롤러
-==========================================
+스마트스토어 키워드 순위 추적기 - 크롤러
 매일 실행하면 data/rankings.json에 순위가 누적 저장됩니다.
-
-[처음 설정할 때 여기만 수정하세요!]
 """
 
 import json
+import os
 import time
 import random
 from datetime import datetime
 from pathlib import Path
 
 import requests
-from bs4 import BeautifulSoup
 
 # ============================================================
-# ✏️  여기를 내 정보로 바꾸세요
+# 여기를 내 정보로 바꾸세요
 # ============================================================
 
-# 내 스마트스토어 URL에 포함된 고유 주소
-# 예: https://smartstore.naver.com/bbiddulz → "bbiddulz"
-MY_STORE_ID = "bbiddulz"
+MY_STORE_ID = "minimalsign"
+
+# 순위를 추적할 특정 상품 ID
+# https://smartstore.naver.com/minimalsign/products/4061216291
+MY_PRODUCT_ID = "4061216291"
 
 # 추적할 키워드 목록
 KEYWORDS = [
-    "아이그림 키링",
-    "어린이그림 폰케이스",
-    "아크릴키링 주문제작",
-    # 키워드 추가할 땐 이 형식으로 한 줄씩 추가하세요
+    "미니간판",
+    "카페간판",
+    "스텐간판",
 ]
 
-# 몇 위까지 검색할지 (최대 100위 / 숫자 높을수록 시간 오래 걸림)
+# 몇 위까지 검색할지 (네이버 검색 API 최대 100개)
 MAX_RANK = 100
 
-# 데이터 저장 경로 (건드리지 마세요)
+# 데이터 저장 경로
 DATA_FILE = Path(__file__).parent / "data" / "rankings.json"
+
+# ============================================================
+# 네이버 검색 API 키 (환경변수 우선, 없으면 아래 직접 입력)
+# ============================================================
+
+CLIENT_ID     = os.environ.get("NAVER_CLIENT_ID",     "")
+CLIENT_SECRET = os.environ.get("NAVER_CLIENT_SECRET", "")
 
 # ============================================================
 
 
-HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/124.0.0.0 Safari/537.36"
-    ),
-    "Accept-Language": "ko-KR,ko;q=0.9",
-    "Referer": "https://search.shopping.naver.com/",
-}
+def get_rank(keyword: str, product_id: str, max_rank: int = 100) -> int | None:
+    """네이버 쇼핑 검색 API로 특정 상품의 순위를 반환. 없으면 None."""
+    headers = {
+        "X-Naver-Client-Id": CLIENT_ID,
+        "X-Naver-Client-Secret": CLIENT_SECRET,
+    }
 
-
-def get_rank(keyword: str, store_id: str, max_rank: int = 100) -> int | None:
-    """
-    네이버 쇼핑에서 키워드 검색 후 내 상품 순위 반환
-    찾지 못하면 None 반환
-    """
-    rank = None
-    page = 1
+    display = 100  # 한 번에 최대 100개
+    start = 1
     found_count = 0
 
     while found_count < max_rank:
-        url = (
-            f"https://search.shopping.naver.com/search/all"
-            f"?query={requests.utils.quote(keyword)}"
-            f"&pagingIndex={page}&pagingSize=40&sort=rel"
-        )
+        params = {
+            "query": keyword,
+            "display": display,
+            "start": start,
+            "sort": "sim",  # 유사도순 (= 기본 정렬)
+        }
 
         try:
-            resp = requests.get(url, headers=HEADERS, timeout=10)
+            resp = requests.get(
+                "https://openapi.naver.com/v1/search/shop.json",
+                headers=headers,
+                params=params,
+                timeout=10,
+            )
             resp.raise_for_status()
         except Exception as e:
             print(f"    ⚠️  요청 실패: {e}")
-            break
+            return None
 
-        soup = BeautifulSoup(resp.text, "html.parser")
-
-        # 상품 링크 추출 (네이버 쇼핑 구조)
-        items = soup.select("a[href*='smartstore.naver.com']")
-
+        items = resp.json().get("items", [])
         if not items:
-            # JSON 데이터에서도 시도
-            import re
-            links = re.findall(
-                r'smartstore\.naver\.com/([^/"\'\\s]+)', resp.text
-            )
-            items_found = links
-        else:
-            items_found = [a.get("href", "") for a in items]
-
-        if not items_found:
             break
 
-        for link in items_found:
+        for item in items:
             found_count += 1
-            link_str = str(link).lower()
-            if store_id.lower() in link_str:
-                rank = found_count
-                return rank
+            link = item.get("link", "") + item.get("productId", "")
+            mall_name = item.get("mallName", "")
+            product_id_field = str(item.get("productId", ""))
+
+            if product_id in link or product_id in product_id_field:
+                return found_count
+
             if found_count >= max_rank:
                 return None
 
-        page += 1
-        # 과도한 요청 방지 - 1~2초 랜덤 대기
-        time.sleep(random.uniform(1.0, 2.0))
+        # 다음 페이지 (API start 최대 1000)
+        start += display
+        if start > 1000:
+            break
 
-    return rank
+        time.sleep(random.uniform(0.3, 0.7))
+
+    return None
 
 
 def load_data() -> dict:
-    """기존 저장 데이터 불러오기"""
     DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
     if DATA_FILE.exists():
         with open(DATA_FILE, "r", encoding="utf-8") as f:
@@ -118,7 +111,6 @@ def load_data() -> dict:
 
 
 def save_data(data: dict):
-    """데이터 저장"""
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     print(f"💾 저장 완료: {DATA_FILE}")
@@ -128,6 +120,7 @@ def main():
     today = datetime.now().strftime("%Y-%m-%d")
     print(f"\n🔍 순위 조회 시작 [{today}]")
     print(f"   스토어: {MY_STORE_ID}")
+    print(f"   상품ID: {MY_PRODUCT_ID}")
     print(f"   키워드: {len(KEYWORDS)}개\n")
 
     data = load_data()
@@ -136,18 +129,16 @@ def main():
 
     for keyword in KEYWORDS:
         print(f"📌 '{keyword}' 조회 중...")
-        rank = get_rank(keyword, MY_STORE_ID, MAX_RANK)
+        rank = get_rank(keyword, MY_PRODUCT_ID, MAX_RANK)
 
         if rank:
             print(f"   ✅ {rank}위 발견!")
         else:
             print(f"   ❌ {MAX_RANK}위 내 없음")
 
-        # 키워드별 히스토리 누적
         if keyword not in data["keywords"]:
             data["keywords"][keyword] = []
 
-        # 같은 날짜면 덮어쓰기, 새 날짜면 추가
         history = data["keywords"][keyword]
         existing = next((h for h in history if h["date"] == today), None)
         if existing:
@@ -155,11 +146,9 @@ def main():
         else:
             history.append({"date": today, "rank": rank})
 
-        # 날짜 순 정렬
         data["keywords"][keyword].sort(key=lambda x: x["date"])
 
-        # 키워드 사이 2~3초 대기
-        time.sleep(random.uniform(2.0, 3.0))
+        time.sleep(random.uniform(1.0, 2.0))
 
     save_data(data)
     print("\n✨ 모든 키워드 조회 완료!")

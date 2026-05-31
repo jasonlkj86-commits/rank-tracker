@@ -2,7 +2,7 @@ name: 매일 순위 자동 수집
 
 on:
   schedule:
-    # 매일 오전 9시 (한국시간) 자동 실행
+    # 매일 오전 9시 (한국시간 = UTC 0시)
     - cron: '0 0 * * *'
   workflow_dispatch:
     # GitHub에서 수동으로도 실행 가능
@@ -23,9 +23,12 @@ jobs:
           python-version: '3.11'
 
       - name: 필요한 패키지 설치
-        run: pip install requests beautifulsoup4
+        run: pip install requests
 
-      - name: 순위 크롤링 실행
+      - name: 순위 수집 실행
+        env:
+          NAVER_CLIENT_ID: ${{ secrets.NAVER_CLIENT_ID }}
+          NAVER_CLIENT_SECRET: ${{ secrets.NAVER_CLIENT_SECRET }}
         run: python crawler.py
 
       - name: 결과 GitHub에 저장
