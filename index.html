@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>스마트스토어 순위 트래커</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --bg: #0f0f13;
+    --surface: #1a1a22;
+    --surface2: #22222d;
+    --border: rgba(255,255,255,0.08);
+    --text: #f0eff4;
+    --muted: #8b8a9a;
+    --accent: #7c6af7;
+    --accent2: #4ecdc4;
+    --up: #4ecdc4;
+    --down: #ff6b6b;
+    --neutral: #8b8a9a;
+    --font: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    min-height: 100vh;
+    padding: 2rem 1.5rem;
+  }
+
+  /* 헤더 */
+  .header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 2.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .header-left h1 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    background: linear-gradient(135deg, #fff 0%, var(--accent) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .header-left p {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-top: 0.3rem;
+  }
+  .store-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 0.4rem 1rem;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+  .store-badge span { color: var(--text); font-weight: 600; }
+
+  /* 현재 순위 카드 그리드 */
+  .section-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 1rem;
+  }
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2.5rem;
+  }
+  .rank-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.25rem 1.25rem 1rem;
+    cursor: pointer;
+    transition: border-color 0.2s, transform 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+  .rank-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--accent);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .rank-card:hover { border-color: rgba(255,255,255,0.18); transform: translateY(-2px); }
+  .rank-card.active { border-color: var(--accent); }
+  .rank-card.active::before { opacity: 1; }
+
+  .card-keyword {
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-bottom: 0.75rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .card-rank {
+    font-size: 2.4rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    color: var(--text);
+  }
+  .card-rank .unit { font-size: 1rem; font-weight: 500; color: var(--muted); margin-left: 2px; }
+  .card-rank.no-rank { font-size: 1.2rem; color: var(--muted); }
+  .card-change {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-top: 0.5rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+  .card-change.up { color: var(--up); }
+  .card-change.down { color: var(--down); }
+  .card-change.neutral { color: var(--neutral); }
+  .change-arrow { font-size: 0.9rem; }
+
+  /* 차트 영역 */
+  .chart-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  .chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+  }
+  .chart-title {
+    font-size: 1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .kw-badge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: rgba(124,106,247,0.15);
+    color: var(--accent);
+    border-radius: 100px;
+    padding: 0.2rem 0.7rem;
+  }
+  .chart-note {
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+  .chart-wrap {
+    position: relative;
+    height: 260px;
+  }
+
+  /* 범례 */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.78rem;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 0.2rem 0.5rem;
+    border-radius: 6px;
+    transition: background 0.15s;
+  }
+  .legend-item:hover { background: rgba(255,255,255,0.05); }
+  .legend-item.active { color: var(--text); }
+  .legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  /* 전체 비교 차트 */
+  .all-chart-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 1.5rem;
+  }
+
+  /* 로딩 / 에러 */
+  .loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    color: var(--muted);
+    gap: 1rem;
+  }
+  .spinner {
+    width: 32px; height: 32px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error-box {
+    background: rgba(255,107,107,0.1);
+    border: 1px solid rgba(255,107,107,0.3);
+    border-radius: 12px;
+    padding: 1.25rem;
+    color: #ff6b6b;
+    font-size: 0.85rem;
+    line-height: 1.6;
+  }
+
+  /* 반응형 */
+  @media (max-width: 600px) {
+    body { padding: 1.25rem 1rem; }
+    .header { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
+    .cards-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>키워드 순위 트래커</h1>
+    <p id="last-updated">데이터 불러오는 중...</p>
+  </div>
+  <div class="store-badge">
+    📦 <span id="store-id-badge">-</span>
+  </div>
+</div>
+
+<!-- 현재 순위 카드 -->
+<div class="section-label">현재 순위 (최신 기준)</div>
+<div class="cards-grid" id="cards-grid">
+  <div class="loading"><div class="spinner"></div></div>
+</div>
+
+<!-- 선택한 키워드 순위 변동 차트 -->
+<div class="chart-section">
+  <div class="chart-header">
+    <div class="chart-title">
+      순위 변동 추이
+      <span class="kw-badge" id="selected-kw-label">전체</span>
+    </div>
+    <div class="chart-note">※ 순위가 낮을수록 상단 노출 (1위 = 최상단)</div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="mainChart" role="img" aria-label="키워드별 순위 변동 시계열 차트"></canvas>
+  </div>
+  <div class="legend" id="chart-legend"></div>
+</div>
+
+<!-- 전체 키워드 최신 순위 비교 바 차트 -->
+<div class="all-chart-section">
+  <div class="chart-header">
+    <div class="chart-title">키워드별 최신 순위 비교</div>
+    <div class="chart-note">낮은 숫자 = 더 좋은 순위</div>
+  </div>
+  <div class="chart-wrap" id="bar-chart-wrap" style="height:200px;">
+    <canvas id="barChart" role="img" aria-label="키워드별 현재 순위 비교 바 차트"></canvas>
+  </div>
+</div>
+
+<script>
+// =====================================================
+// 데이터 소스 설정
+// rankings.json 파일에서 자동으로 데이터를 가져옵니다.
+// =====================================================
+const DATA_URL = './data/rankings.json';
+
+// 키워드별 색상 (최대 8개)
+const PALETTE = [
+  '#7c6af7', '#4ecdc4', '#ff9f43', '#ff6b9d',
+  '#26de81', '#fd9644', '#a55eea', '#45aaf2'
+];
+
+let allData = null;
+let mainChart = null;
+let barChart = null;
+let selectedKeyword = null;
+
+// =====================================================
+// 데이터 로드
+// =====================================================
+async function loadData() {
+  try {
+    // GitHub Pages / Netlify에서는 실제 fetch
+    const resp = await fetch(DATA_URL);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    return await resp.json();
+  } catch (e) {
+    // 로컬 개발시 샘플 데이터 fallback
+    console.warn('rankings.json 로드 실패, 샘플 데이터 사용:', e.message);
+    return SAMPLE_DATA;
+  }
+}
+
+// =====================================================
+// 현재 순위 카드 렌더링
+// =====================================================
+function renderCards(data) {
+  const grid = document.getElementById('cards-grid');
+  const keywords = Object.keys(data.keywords);
+  grid.innerHTML = '';
+
+  keywords.forEach((kw, i) => {
+    const history = data.keywords[kw];
+    const latest = [...history].reverse().find(h => h.rank !== null);
+    const prev = [...history].reverse().find((h, idx) => idx > 0 && h.rank !== null);
+
+    const currentRank = latest ? latest.rank : null;
+    let changeTxt = '', changeClass = 'neutral', arrow = '—';
+
+    if (currentRank && prev) {
+      const diff = prev.rank - currentRank; // 양수 = 순위 상승
+      if (diff > 0) {
+        changeTxt = `${diff}위 상승`;
+        changeClass = 'up';
+        arrow = '▲';
+      } else if (diff < 0) {
+        changeTxt = `${Math.abs(diff)}위 하락`;
+        changeClass = 'down';
+        arrow = '▼';
+      } else {
+        changeTxt = '변동 없음';
+        arrow = '—';
+      }
+    } else if (!currentRank) {
+      changeTxt = '100위 밖';
+    } else {
+      changeTxt = '첫 수집';
+    }
+
+    const card = document.createElement('div');
+    card.className = 'rank-card' + (selectedKeyword === kw ? ' active' : '');
+    card.dataset.kw = kw;
+    card.style.setProperty('--accent', PALETTE[i % PALETTE.length]);
+
+    card.innerHTML = `
+      <div class="card-keyword" title="${kw}">${kw}</div>
+      ${currentRank
+        ? `<div class="card-rank">${currentRank}<span class="unit">위</span></div>`
+        : `<div class="card-rank no-rank">100위 밖</div>`
+      }
+      <div class="card-change ${changeClass}">
+        <span class="change-arrow">${arrow}</span>
+        <span>${changeTxt}</span>
+      </div>
+    `;
+
+    card.addEventListener('click', () => {
+      selectedKeyword = selectedKeyword === kw ? null : kw;
+      renderCards(allData);
+      updateMainChart(allData);
+    });
+
+    grid.appendChild(card);
+  });
+}
+
+// =====================================================
+// 메인 라인 차트 (순위 변동 추이)
+// =====================================================
+function getChartDatasets(data) {
+  const keywords = Object.keys(data.keywords);
+  const targetKws = selectedKeyword ? [selectedKeyword] : keywords;
+
+  // 전체 날짜 수집
+  const allDates = new Set();
+  keywords.forEach(kw => data.keywords[kw].forEach(h => allDates.add(h.date)));
+  const dates = [...allDates].sort();
+
+  const datasets = targetKws.map((kw, i) => {
+    const colorIdx = keywords.indexOf(kw);
+    const color = PALETTE[colorIdx % PALETTE.length];
+    const history = data.keywords[kw];
+    const rankMap = {};
+    history.forEach(h => { rankMap[h.date] = h.rank; });
+
+    return {
+      label: kw,
+      data: dates.map(d => rankMap[d] ?? null),
+      borderColor: color,
+      backgroundColor: color + '22',
+      borderWidth: 2,
+      pointBackgroundColor: color,
+      pointRadius: 4,
+      pointHoverRadius: 6,
+      spanGaps: true,
+      tension: 0.3,
+      fill: selectedKeyword ? true : false,
+    };
+  });
+
+  return { dates, datasets };
+}
+
+function updateMainChart(data) {
+  const kw = selectedKeyword || '전체';
+  document.getElementById('selected-kw-label').textContent = kw;
+
+  const { dates, datasets } = getChartDatasets(data);
+
+  if (mainChart) {
+    mainChart.data.labels = dates;
+    mainChart.data.datasets = datasets;
+    mainChart.update();
+  } else {
+    const ctx = document.getElementById('mainChart').getContext('2d');
+    mainChart = new Chart(ctx, {
+      type: 'line',
+      data: { labels: dates, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1a1a22',
+            borderColor: 'rgba(255,255,255,0.1)',
+            borderWidth: 1,
+            titleColor: '#f0eff4',
+            bodyColor: '#8b8a9a',
+            callbacks: {
+              label: ctx => ctx.raw ? ` ${ctx.dataset.label}: ${ctx.raw}위` : ` ${ctx.dataset.label}: 100위 밖`
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: 'rgba(255,255,255,0.05)' },
+            ticks: {
+              color: '#8b8a9a',
+              font: { size: 11 },
+              maxTicksLimit: 10,
+              maxRotation: 30
+            }
+          },
+          y: {
+            reverse: true, // 1위가 위에 오도록
+            grid: { color: 'rgba(255,255,255,0.05)' },
+            ticks: {
+              color: '#8b8a9a',
+              font: { size: 11 },
+              callback: v => `${v}위`
+            },
+            title: {
+              display: true,
+              text: '← 상위 노출',
+              color: '#8b8a9a',
+              font: { size: 10 }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // 범례 렌더링
+  renderLegend(data, datasets);
+}
+
+function renderLegend(data, datasets) {
+  const legend = document.getElementById('chart-legend');
+  const keywords = Object.keys(data.keywords);
+  legend.innerHTML = datasets.map(ds => {
+    const isActive = !selectedKeyword || selectedKeyword === ds.label;
+    return `
+      <div class="legend-item ${isActive ? 'active' : ''}" data-kw="${ds.label}">
+        <div class="legend-dot" style="background:${ds.borderColor}"></div>
+        ${ds.label}
+      </div>
+    `;
+  }).join('');
+
+  legend.querySelectorAll('.legend-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const kw = el.dataset.kw;
+      selectedKeyword = selectedKeyword === kw ? null : kw;
+      renderCards(allData);
+      updateMainChart(allData);
+    });
+  });
+}
+
+// =====================================================
+// 바 차트 (최신 순위 비교)
+// =====================================================
+function renderBarChart(data) {
+  const keywords = Object.keys(data.keywords);
+  const ranks = keywords.map(kw => {
+    const history = data.keywords[kw];
+    const latest = [...history].reverse().find(h => h.rank !== null);
+    return latest ? latest.rank : null;
+  });
+
+  // 바 차트 높이를 키워드 수에 맞게 조정
+  const wrapEl = document.getElementById('bar-chart-wrap');
+  wrapEl.style.height = Math.max(160, keywords.length * 44 + 60) + 'px';
+
+  const colors = keywords.map((_, i) => PALETTE[i % PALETTE.length]);
+
+  if (barChart) {
+    barChart.data.labels = keywords;
+    barChart.data.datasets[0].data = ranks;
+    barChart.data.datasets[0].backgroundColor = colors.map(c => c + 'bb');
+    barChart.update();
+    return;
+  }
+
+  const ctx = document.getElementById('barChart').getContext('2d');
+  barChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: keywords,
+      datasets: [{
+        label: '현재 순위',
+        data: ranks,
+        backgroundColor: colors.map(c => c + 'bb'),
+        borderColor: colors,
+        borderWidth: 1.5,
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1a22',
+          borderColor: 'rgba(255,255,255,0.1)',
+          borderWidth: 1,
+          callbacks: {
+            label: ctx => ctx.raw ? ` ${ctx.raw}위` : ' 100위 밖'
+          }
+        }
+      },
+      scales: {
+        x: {
+          reverse: true,
+          grid: { color: 'rgba(255,255,255,0.05)' },
+          ticks: { color: '#8b8a9a', font: { size: 11 }, callback: v => `${v}위` }
+        },
+        y: {
+          grid: { display: false },
+          ticks: { color: '#f0eff4', font: { size: 12 } }
+        }
+      }
+    }
+  });
+}
+
+// =====================================================
+// 메인 실행
+// =====================================================
+async function init() {
+  allData = await loadData();
+
+  // 헤더 업데이트
+  document.getElementById('store-id-badge').textContent = allData.store_id;
+  document.getElementById('last-updated').textContent =
+    `마지막 업데이트: ${allData.last_updated || '알 수 없음'}`;
+
+  renderCards(allData);
+  updateMainChart(allData);
+  renderBarChart(allData);
+}
+
+// =====================================================
+// 샘플 데이터 (rankings.json이 없을 때 사용)
+// =====================================================
+const SAMPLE_DATA = {
+  "store_id": "내스토어",
+  "last_updated": "데이터 없음",
+  "keywords": {
+    "샘플 키워드 A": [
+      { "date": "2026-05-25", "rank": 20 },
+      { "date": "2026-05-26", "rank": 15 },
+      { "date": "2026-05-27", "rank": 12 },
+      { "date": "2026-05-28", "rank": 10 },
+      { "date": "2026-05-29", "rank": 8 },
+      { "date": "2026-05-30", "rank": 6 },
+      { "date": "2026-05-31", "rank": 5 }
+    ],
+    "샘플 키워드 B": [
+      { "date": "2026-05-25", "rank": null },
+      { "date": "2026-05-26", "rank": 80 },
+      { "date": "2026-05-27", "rank": 65 },
+      { "date": "2026-05-28", "rank": 50 },
+      { "date": "2026-05-29", "rank": 42 },
+      { "date": "2026-05-30", "rank": 35 },
+      { "date": "2026-05-31", "rank": 28 }
+    ]
+  }
+};
+
+init();
+</script>
+</body>
+</html>
