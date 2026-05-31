@@ -6,253 +6,347 @@
 <title>스마트스토어 순위 트래커</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
-  :root {
-    --bg: #0f0f13;
-    --surface: #1a1a22;
-    --surface2: #22222d;
-    --border: rgba(255,255,255,0.08);
-    --text: #f0eff4;
-    --muted: #8b8a9a;
-    --accent: #7c6af7;
-    --accent2: #4ecdc4;
-    --up: #4ecdc4;
-    --down: #ff6b6b;
-    --neutral: #8b8a9a;
-    --font: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--font);
-    min-height: 100vh;
-    padding: 2rem 1.5rem;
-  }
+:root {
+  --bg: #0f0f13;
+  --surface: #1a1a22;
+  --surface2: #22222d;
+  --border: rgba(255,255,255,0.08);
+  --text: #f0eff4;
+  --muted: #8b8a9a;
+  --accent: #7c6af7;
+  --up: #4ecdc4;
+  --down: #ff6b6b;
+  --neutral: #8b8a9a;
+  --font: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  --radius: 14px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  min-height: 100vh;
+  padding: 2rem 1.5rem 4rem;
+}
 
-  /* 헤더 */
-  .header {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    margin-bottom: 2.5rem;
-    padding-bottom: 1.5rem;
-    border-bottom: 1px solid var(--border);
-  }
-  .header-left h1 {
-    font-size: 1.6rem;
-    font-weight: 700;
-    letter-spacing: -0.03em;
-    background: linear-gradient(135deg, #fff 0%, var(--accent) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-  .header-left p {
-    font-size: 0.8rem;
-    color: var(--muted);
-    margin-top: 0.3rem;
-  }
-  .store-badge {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 100px;
-    padding: 0.4rem 1rem;
-    font-size: 0.8rem;
-    color: var(--muted);
-  }
-  .store-badge span { color: var(--text); font-weight: 600; }
+/* ── 헤더 ── */
+.header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.header h1 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg, #fff 0%, var(--accent) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.header p { font-size: 0.8rem; color: var(--muted); margin-top: 0.3rem; }
+.icon-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 1.1rem;
+  width: 38px; height: 38px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: color 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+.icon-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
 
-  /* 현재 순위 카드 그리드 */
-  .section-label {
-    font-size: 0.72rem;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-bottom: 1rem;
-  }
-  .cards-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 1rem;
-    margin-bottom: 2.5rem;
-  }
-  .rank-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 1.25rem 1.25rem 1rem;
-    cursor: pointer;
-    transition: border-color 0.2s, transform 0.15s;
-    position: relative;
-    overflow: hidden;
-  }
-  .rank-card::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 3px;
-    background: var(--accent);
-    opacity: 0;
-    transition: opacity 0.2s;
-  }
-  .rank-card:hover { border-color: rgba(255,255,255,0.18); transform: translateY(-2px); }
-  .rank-card.active { border-color: var(--accent); }
-  .rank-card.active::before { opacity: 1; }
+/* ── 상품 탭 ── */
+.tabs-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+.tabs-row::-webkit-scrollbar { display: none; }
+.product-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  padding: 0.45rem 1rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.product-tab:hover { color: var(--text); border-color: rgba(255,255,255,0.18); }
+.product-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.product-tab .edit-icon { font-size: 0.75rem; opacity: 0.7; }
+.add-tab-btn {
+  background: transparent;
+  border: 1px dashed rgba(255,255,255,0.2);
+  border-radius: 100px;
+  padding: 0.45rem 1rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.add-tab-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.4); }
 
-  .card-keyword {
-    font-size: 0.82rem;
-    color: var(--muted);
-    margin-bottom: 0.75rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .card-rank {
-    font-size: 2.4rem;
-    font-weight: 800;
-    letter-spacing: -0.04em;
-    line-height: 1;
-    color: var(--text);
-  }
-  .card-rank .unit { font-size: 1rem; font-weight: 500; color: var(--muted); margin-left: 2px; }
-  .card-rank.no-rank { font-size: 1.2rem; color: var(--muted); }
-  .card-change {
-    display: flex;
-    align-items: center;
-    gap: 0.3rem;
-    margin-top: 0.5rem;
-    font-size: 0.78rem;
-    font-weight: 600;
-  }
-  .card-change.up { color: var(--up); }
-  .card-change.down { color: var(--down); }
-  .card-change.neutral { color: var(--neutral); }
-  .change-arrow { font-size: 0.9rem; }
+/* ── 섹션 레이블 ── */
+.section-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 1rem;
+}
 
-  /* 차트 영역 */
-  .chart-section {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 1.5rem;
-    margin-bottom: 2rem;
-  }
-  .chart-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 1.5rem;
-  }
-  .chart-title {
-    font-size: 1rem;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-  .kw-badge {
-    font-size: 0.75rem;
-    font-weight: 600;
-    background: rgba(124,106,247,0.15);
-    color: var(--accent);
-    border-radius: 100px;
-    padding: 0.2rem 0.7rem;
-  }
-  .chart-note {
-    font-size: 0.75rem;
-    color: var(--muted);
-  }
-  .chart-wrap {
-    position: relative;
-    height: 260px;
-  }
+/* ── 순위 카드 ── */
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.875rem;
+  margin-bottom: 2rem;
+}
+.rank-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.1rem 0.9rem;
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.15s;
+  position: relative;
+  overflow: hidden;
+}
+.rank-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--card-color, var(--accent));
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.rank-card:hover { border-color: rgba(255,255,255,0.15); transform: translateY(-2px); }
+.rank-card.active { border-color: var(--card-color, var(--accent)); }
+.rank-card.active::before { opacity: 1; }
+.card-keyword { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.6rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-rank { font-size: 2.2rem; font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
+.card-rank .unit { font-size: 0.9rem; font-weight: 500; color: var(--muted); margin-left: 2px; }
+.card-rank.no-rank { font-size: 1.1rem; color: var(--muted); }
+.card-change { display: flex; align-items: center; gap: 0.3rem; margin-top: 0.45rem; font-size: 0.75rem; font-weight: 600; }
+.card-change.up { color: var(--up); }
+.card-change.down { color: var(--down); }
+.card-change.neutral { color: var(--neutral); }
 
-  /* 범례 */
-  .legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
-    margin-top: 1rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--border);
-  }
-  .legend-item {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-size: 0.78rem;
-    color: var(--muted);
-    cursor: pointer;
-    padding: 0.2rem 0.5rem;
-    border-radius: 6px;
-    transition: background 0.15s;
-  }
-  .legend-item:hover { background: rgba(255,255,255,0.05); }
-  .legend-item.active { color: var(--text); }
-  .legend-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-  }
+/* ── 차트 영역 ── */
+.chart-section, .all-chart-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+}
+.chart-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.5rem; }
+.chart-title { font-size: 0.95rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; }
+.kw-badge { font-size: 0.72rem; font-weight: 600; background: rgba(124,106,247,0.15); color: var(--accent); border-radius: 100px; padding: 0.2rem 0.65rem; }
+.chart-note { font-size: 0.72rem; color: var(--muted); }
+.chart-wrap { position: relative; height: 250px; }
+.legend { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+.legend-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.76rem; color: var(--muted); cursor: pointer; padding: 0.2rem 0.5rem; border-radius: 6px; transition: background 0.15s; }
+.legend-item:hover { background: rgba(255,255,255,0.05); }
+.legend-item.active { color: var(--text); }
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 
-  /* 전체 비교 차트 */
-  .all-chart-section {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 1.5rem;
-  }
+/* ── 로딩 / 에러 ── */
+.loading { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 160px; color: var(--muted); gap: 1rem; }
+.spinner { width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.empty-state { text-align: center; padding: 2.5rem 1rem; color: var(--muted); line-height: 1.8; }
+.empty-state .big { font-size: 2rem; margin-bottom: 0.5rem; }
 
-  /* 로딩 / 에러 */
-  .loading {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 200px;
-    color: var(--muted);
-    gap: 1rem;
-  }
-  .spinner {
-    width: 32px; height: 32px;
-    border: 3px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .error-box {
-    background: rgba(255,107,107,0.1);
-    border: 1px solid rgba(255,107,107,0.3);
-    border-radius: 12px;
-    padding: 1.25rem;
-    color: #ff6b6b;
-    font-size: 0.85rem;
-    line-height: 1.6;
-  }
+/* ── 모달 ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 1rem;
+  backdrop-filter: blur(4px);
+}
+.modal-overlay.hidden { display: none; }
+.modal {
+  background: var(--surface2);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 460px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.modal-header h2 { font-size: 1.05rem; font-weight: 700; }
+.modal-body { padding: 1.5rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem; }
+.modal-footer { padding: 1rem 1.5rem; border-top: 1px solid var(--border); display: flex; gap: 0.5rem; justify-content: flex-end; }
+.modal-desc { font-size: 0.82rem; color: var(--muted); line-height: 1.6; }
+.modal-hint { font-size: 0.78rem; color: var(--muted); line-height: 1.7; }
+.modal-hint a { color: var(--accent); text-decoration: none; }
+.modal-hint a:hover { text-decoration: underline; }
 
-  /* 반응형 */
-  @media (max-width: 600px) {
-    body { padding: 1.25rem 1rem; }
-    .header { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
-    .cards-grid { grid-template-columns: 1fr 1fr; }
-  }
+label { font-size: 0.8rem; font-weight: 600; color: var(--muted); }
+input[type=text], input[type=password], input:not([type]) {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.65rem 0.9rem;
+  color: var(--text);
+  font-size: 0.88rem;
+  font-family: var(--font);
+  outline: none;
+  transition: border-color 0.15s;
+}
+input:focus { border-color: var(--accent); }
+input::placeholder { color: var(--muted); }
+
+.parsed-box { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.65rem 0.9rem; font-size: 0.82rem; color: var(--muted); line-height: 1.7; }
+.parsed-box span { color: var(--up); font-weight: 600; }
+.parsed-box.error { border-color: rgba(255,107,107,0.3); color: var(--down); }
+
+/* 키워드 태그 */
+.keyword-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  min-height: 36px;
+}
+.kw-tag {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(124,106,247,0.15);
+  border: 1px solid rgba(124,106,247,0.3);
+  border-radius: 100px;
+  padding: 0.25rem 0.7rem 0.25rem 0.8rem;
+  font-size: 0.8rem;
+  color: var(--accent);
+}
+.kw-tag button { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 0.9rem; line-height: 1; opacity: 0.7; padding: 0; }
+.kw-tag button:hover { opacity: 1; }
+.kw-input-row { display: flex; gap: 0.5rem; }
+.kw-input-row input { flex: 1; }
+
+/* 버튼 */
+.btn-primary {
+  background: var(--accent);
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 0.6rem 1.25rem;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  font-family: var(--font);
+}
+.btn-primary:hover { opacity: 0.85; }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-danger {
+  background: rgba(255,107,107,0.12);
+  border: 1px solid rgba(255,107,107,0.25);
+  border-radius: 10px;
+  color: var(--down);
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 0.6rem 1.25rem;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-family: var(--font);
+  margin-right: auto;
+}
+.btn-danger:hover { background: rgba(255,107,107,0.2); }
+.btn-secondary {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  padding: 0.6rem 1.25rem;
+  cursor: pointer;
+  transition: color 0.15s;
+  font-family: var(--font);
+}
+.btn-secondary:hover { color: var(--text); }
+
+/* 토스트 */
+.toast {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface2);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 100px;
+  padding: 0.6rem 1.25rem;
+  font-size: 0.85rem;
+  color: var(--text);
+  z-index: 200;
+  white-space: nowrap;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  transition: opacity 0.3s;
+}
+.toast.hidden { display: none; }
+.toast.success { border-color: rgba(78,205,196,0.4); color: var(--up); }
+.toast.error { border-color: rgba(255,107,107,0.4); color: var(--down); }
+
+/* 반응형 */
+@media (max-width: 600px) {
+  body { padding: 1.25rem 1rem 3rem; }
+  .header { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
+  .cards-grid { grid-template-columns: 1fr 1fr; }
+}
 </style>
 </head>
 <body>
 
+<!-- 헤더 -->
 <div class="header">
-  <div class="header-left">
+  <div>
     <h1>키워드 순위 트래커</h1>
     <p id="last-updated">데이터 불러오는 중...</p>
   </div>
-  <div class="store-badge">
-    📦 <span id="store-id-badge">-</span>
-  </div>
+  <button class="icon-btn" id="settings-btn" title="GitHub 설정">⚙️</button>
+</div>
+
+<!-- 상품 탭 -->
+<div class="tabs-row" id="tabs-row">
+  <div class="loading" style="min-height:auto"><div class="spinner" style="width:20px;height:20px"></div></div>
 </div>
 
 <!-- 현재 순위 카드 -->
@@ -261,151 +355,505 @@
   <div class="loading"><div class="spinner"></div></div>
 </div>
 
-<!-- 선택한 키워드 순위 변동 차트 -->
+<!-- 순위 변동 라인 차트 -->
 <div class="chart-section">
   <div class="chart-header">
-    <div class="chart-title">
-      순위 변동 추이
-      <span class="kw-badge" id="selected-kw-label">전체</span>
-    </div>
-    <div class="chart-note">※ 순위가 낮을수록 상단 노출 (1위 = 최상단)</div>
+    <div class="chart-title">순위 변동 추이 <span class="kw-badge" id="selected-kw-label">전체</span></div>
+    <div class="chart-note">※ 1위 = 최상단 노출</div>
   </div>
-  <div class="chart-wrap">
-    <canvas id="mainChart" role="img" aria-label="키워드별 순위 변동 시계열 차트"></canvas>
-  </div>
+  <div class="chart-wrap"><canvas id="mainChart"></canvas></div>
   <div class="legend" id="chart-legend"></div>
 </div>
 
-<!-- 전체 키워드 최신 순위 비교 바 차트 -->
+<!-- 최신 순위 비교 바 차트 -->
 <div class="all-chart-section">
   <div class="chart-header">
-    <div class="chart-title">키워드별 최신 순위 비교</div>
+    <div class="chart-title">키워드별 현재 순위 비교</div>
     <div class="chart-note">낮은 숫자 = 더 좋은 순위</div>
   </div>
-  <div class="chart-wrap" id="bar-chart-wrap" style="height:200px;">
-    <canvas id="barChart" role="img" aria-label="키워드별 현재 순위 비교 바 차트"></canvas>
+  <div class="chart-wrap" id="bar-chart-wrap" style="height:180px;">
+    <canvas id="barChart"></canvas>
   </div>
 </div>
 
-<script>
-// =====================================================
-// 데이터 소스 설정
-// rankings.json 파일에서 자동으로 데이터를 가져옵니다.
-// =====================================================
-const DATA_URL = './data/rankings.json';
 
-// 키워드별 색상 (최대 8개)
+<!-- ══════════ 설정 모달 ══════════ -->
+<div class="modal-overlay hidden" id="settings-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>GitHub 설정</h2>
+      <button class="icon-btn" onclick="closeModal('settings-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-desc">웹에서 상품/키워드를 추가하려면 GitHub Personal Access Token이 필요합니다. 토큰은 이 기기에만 저장됩니다.</p>
+      <div>
+        <label>GitHub 사용자명</label>
+        <input id="gh-owner" placeholder="예: jasonlkj86-commits">
+      </div>
+      <div>
+        <label>레포지토리 이름</label>
+        <input id="gh-repo" placeholder="예: rank-tracker">
+      </div>
+      <div>
+        <label>Personal Access Token</label>
+        <input id="gh-token" type="password" placeholder="ghp_...">
+      </div>
+      <p class="modal-hint">
+        토큰 발급: <a href="https://github.com/settings/tokens/new" target="_blank">GitHub → Settings → Developer settings → Personal access tokens</a><br>
+        권한: <strong>repo</strong> 전체 체크 후 생성
+      </p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('settings-modal')">취소</button>
+      <button class="btn-primary" onclick="saveSettings()">저장</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════ 상품 추가/편집 모달 ══════════ -->
+<div class="modal-overlay hidden" id="product-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="product-modal-title">상품 추가</h2>
+      <button class="icon-btn" onclick="closeModal('product-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div>
+        <label>스마트스토어 상품 URL</label>
+        <input id="p-url" placeholder="https://smartstore.naver.com/storeid/products/1234567890" oninput="parseProductUrl(this.value)">
+        <div id="parsed-info" style="margin-top:0.5rem"></div>
+      </div>
+      <div>
+        <label>상품 이름 (대시보드 표시용)</label>
+        <input id="p-name" placeholder="예: 미니 간판">
+      </div>
+      <div>
+        <label>추적 키워드</label>
+        <div class="keyword-tags" id="keyword-tags"></div>
+        <div class="kw-input-row" style="margin-top:0.5rem">
+          <input id="kw-input" placeholder="키워드 입력 후 Enter" onkeydown="kwInputKeydown(event)">
+          <button class="btn-primary" style="flex-shrink:0" onclick="addKeywordTag()">추가</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-danger" id="delete-product-btn" onclick="deleteCurrentProduct()">삭제</button>
+      <button class="btn-secondary" onclick="closeModal('product-modal')">취소</button>
+      <button class="btn-primary" id="save-product-btn" onclick="saveProduct()">저장</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast hidden" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════
+// 색상 팔레트
+// ═══════════════════════════════════════════════
 const PALETTE = [
-  '#7c6af7', '#4ecdc4', '#ff9f43', '#ff6b9d',
-  '#26de81', '#fd9644', '#a55eea', '#45aaf2'
+  '#7c6af7','#4ecdc4','#ff9f43','#ff6b9d',
+  '#26de81','#fd9644','#a55eea','#45aaf2'
 ];
 
-let allData = null;
+// ═══════════════════════════════════════════════
+// 앱 상태
+// ═══════════════════════════════════════════════
+let config   = { products: [] };
+let rankings = { last_updated: null, products: {} };
+let selectedProductId = null;
+let selectedKeyword   = null;
 let mainChart = null;
-let barChart = null;
-let selectedKeyword = null;
+let barChart  = null;
+let editingProductId = null; // null = 신규, string = 편집
+let kwList = [];             // 모달에서 편집 중인 키워드 목록
 
-// =====================================================
-// 데이터 로드
-// =====================================================
-async function loadData() {
+// ═══════════════════════════════════════════════
+// GitHub API
+// ═══════════════════════════════════════════════
+const GH = {
+  get owner() { return localStorage.getItem('gh_owner') || ''; },
+  get repo()  { return localStorage.getItem('gh_repo')  || ''; },
+  get token() { return localStorage.getItem('gh_token') || ''; },
+  isConfigured() { return !!(this.owner && this.repo && this.token); },
+
+  async readFile(path) {
+    const r = await fetch(
+      `https://api.github.com/repos/${this.owner}/${this.repo}/contents/${path}`,
+      { headers: { Authorization: `token ${this.token}`, Accept: 'application/vnd.github.v3+json' } }
+    );
+    if (!r.ok) throw new Error(`GitHub 읽기 실패 (${r.status})`);
+    const d = await r.json();
+    return { content: JSON.parse(atob(d.content.replace(/\n/g,''))), sha: d.sha };
+  },
+
+  async writeFile(path, content, sha, message) {
+    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(content, null, 2) + '\n')));
+    const r = await fetch(
+      `https://api.github.com/repos/${this.owner}/${this.repo}/contents/${path}`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `token ${this.token}`,
+          Accept: 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ message, content: encoded, sha })
+      }
+    );
+    if (!r.ok) {
+      const e = await r.json();
+      throw new Error(e.message || `GitHub 저장 실패 (${r.status})`);
+    }
+  }
+};
+
+// ═══════════════════════════════════════════════
+// 토스트
+// ═══════════════════════════════════════════════
+let toastTimer = null;
+function showToast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = 'toast hidden'; }, 3000);
+}
+
+// ═══════════════════════════════════════════════
+// 모달
+// ═══════════════════════════════════════════════
+function openModal(id)  { document.getElementById(id).classList.remove('hidden'); }
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+// 모달 외부 클릭 시 닫기
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) closeModal(el.id); });
+});
+
+// ═══════════════════════════════════════════════
+// 설정 모달
+// ═══════════════════════════════════════════════
+document.getElementById('settings-btn').addEventListener('click', openSettings);
+
+function openSettings() {
+  document.getElementById('gh-owner').value = GH.owner;
+  document.getElementById('gh-repo').value  = GH.repo;
+  document.getElementById('gh-token').value = GH.token;
+  openModal('settings-modal');
+}
+
+function saveSettings() {
+  const owner = document.getElementById('gh-owner').value.trim();
+  const repo  = document.getElementById('gh-repo').value.trim();
+  const token = document.getElementById('gh-token').value.trim();
+  if (!owner || !repo || !token) { showToast('모든 항목을 입력해주세요', 'error'); return; }
+  localStorage.setItem('gh_owner', owner);
+  localStorage.setItem('gh_repo',  repo);
+  localStorage.setItem('gh_token', token);
+  closeModal('settings-modal');
+  showToast('설정 저장 완료 ✓', 'success');
+}
+
+// ═══════════════════════════════════════════════
+// 상품 모달 — URL 파싱
+// ═══════════════════════════════════════════════
+function parseProductUrl(url) {
+  const box = document.getElementById('parsed-info');
+  const m = url.match(/smartstore\.naver\.com\/([^/]+)\/products\/(\d+)/);
+  if (!m) {
+    box.innerHTML = url ? `<div class="parsed-box error">올바른 스마트스토어 상품 URL을 입력하세요</div>` : '';
+    return null;
+  }
+  const [, storeId, productId] = m;
+  box.innerHTML = `<div class="parsed-box">스토어: <span>${storeId}</span> &nbsp;|&nbsp; 상품ID: <span>${productId}</span></div>`;
+  return { storeId, productId };
+}
+
+// ═══════════════════════════════════════════════
+// 상품 모달 — 키워드 태그
+// ═══════════════════════════════════════════════
+function renderKeywordTags() {
+  const wrap = document.getElementById('keyword-tags');
+  wrap.innerHTML = kwList.map((kw, i) => `
+    <div class="kw-tag">
+      ${kw}
+      <button onclick="removeKeyword(${i})">✕</button>
+    </div>
+  `).join('');
+}
+
+function removeKeyword(i) {
+  kwList.splice(i, 1);
+  renderKeywordTags();
+}
+
+function addKeywordTag() {
+  const input = document.getElementById('kw-input');
+  const kw = input.value.trim();
+  if (!kw) return;
+  if (kwList.includes(kw)) { showToast('이미 추가된 키워드입니다', 'error'); return; }
+  kwList.push(kw);
+  input.value = '';
+  renderKeywordTags();
+  input.focus();
+}
+
+function kwInputKeydown(e) {
+  if (e.key === 'Enter') { e.preventDefault(); addKeywordTag(); }
+}
+
+// ═══════════════════════════════════════════════
+// 상품 추가 버튼
+// ═══════════════════════════════════════════════
+function openAddProduct() {
+  if (!GH.isConfigured()) {
+    showToast('먼저 GitHub 설정(⚙️)을 완료해주세요', 'error');
+    openSettings();
+    return;
+  }
+  editingProductId = null;
+  kwList = [];
+  document.getElementById('product-modal-title').textContent = '상품 추가';
+  document.getElementById('p-url').value = '';
+  document.getElementById('p-name').value = '';
+  document.getElementById('parsed-info').innerHTML = '';
+  document.getElementById('delete-product-btn').style.display = 'none';
+  renderKeywordTags();
+  openModal('product-modal');
+  document.getElementById('p-url').focus();
+}
+
+// ═══════════════════════════════════════════════
+// 상품 편집 (탭 클릭)
+// ═══════════════════════════════════════════════
+function openEditProduct(productId) {
+  if (!GH.isConfigured()) {
+    showToast('먼저 GitHub 설정(⚙️)을 완료해주세요', 'error');
+    openSettings();
+    return;
+  }
+  const product = config.products.find(p => p.id === productId);
+  if (!product) return;
+
+  editingProductId = productId;
+  kwList = [...product.keywords];
+
+  document.getElementById('product-modal-title').textContent = '상품 편집';
+  document.getElementById('p-url').value = `https://smartstore.naver.com/${product.store_id}/products/${product.id}`;
+  document.getElementById('p-name').value = product.name;
+  document.getElementById('delete-product-btn').style.display = 'block';
+  parseProductUrl(document.getElementById('p-url').value);
+  renderKeywordTags();
+  openModal('product-modal');
+}
+
+// ═══════════════════════════════════════════════
+// 상품 저장 (GitHub API)
+// ═══════════════════════════════════════════════
+async function saveProduct() {
+  const url  = document.getElementById('p-url').value.trim();
+  const name = document.getElementById('p-name').value.trim();
+  const parsed = parseProductUrl(url);
+
+  if (!parsed)       { showToast('올바른 상품 URL을 입력해주세요', 'error'); return; }
+  if (!name)         { showToast('상품 이름을 입력해주세요', 'error'); return; }
+  if (kwList.length === 0) { showToast('키워드를 최소 1개 추가해주세요', 'error'); return; }
+
+  const btn = document.getElementById('save-product-btn');
+  btn.disabled = true;
+  btn.textContent = '저장 중...';
+
   try {
-    // GitHub Pages / Netlify에서는 실제 fetch
-    const resp = await fetch(DATA_URL);
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    return await resp.json();
-  } catch (e) {
-    // 로컬 개발시 샘플 데이터 fallback
-    console.warn('rankings.json 로드 실패, 샘플 데이터 사용:', e.message);
-    return SAMPLE_DATA;
+    const { content: remoteConfig, sha } = await GH.readFile('config.json');
+    const products = remoteConfig.products || [];
+
+    const newProduct = {
+      id: parsed.productId,
+      name,
+      store_id: parsed.storeId,
+      keywords: kwList
+    };
+
+    if (editingProductId) {
+      const idx = products.findIndex(p => p.id === editingProductId);
+      if (idx >= 0) products[idx] = newProduct;
+      else products.push(newProduct);
+    } else {
+      const exists = products.findIndex(p => p.id === parsed.productId);
+      if (exists >= 0) { showToast('이미 등록된 상품입니다', 'error'); return; }
+      products.push(newProduct);
+    }
+
+    remoteConfig.products = products;
+    await GH.writeFile('config.json', remoteConfig, sha, `상품 업데이트: ${name}`);
+
+    config = remoteConfig;
+    closeModal('product-modal');
+    showToast('저장 완료! 내일 오전 9시에 첫 순위가 수집됩니다 ✓', 'success');
+    selectedProductId = parsed.productId;
+    renderTabs();
+    renderCurrentProduct();
+  } catch(e) {
+    showToast(`저장 실패: ${e.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '저장';
   }
 }
 
-// =====================================================
-// 현재 순위 카드 렌더링
-// =====================================================
-function renderCards(data) {
+// ═══════════════════════════════════════════════
+// 상품 삭제 (GitHub API)
+// ═══════════════════════════════════════════════
+async function deleteCurrentProduct() {
+  if (!editingProductId) return;
+  const product = config.products.find(p => p.id === editingProductId);
+  if (!confirm(`"${product?.name}" 상품을 삭제할까요?\n(순위 데이터는 보존됩니다)`)) return;
+
+  const btn = document.getElementById('delete-product-btn');
+  btn.disabled = true;
+
+  try {
+    const { content: remoteConfig, sha } = await GH.readFile('config.json');
+    remoteConfig.products = (remoteConfig.products || []).filter(p => p.id !== editingProductId);
+    await GH.writeFile('config.json', remoteConfig, sha, `상품 삭제: ${product?.name}`);
+
+    config = remoteConfig;
+    closeModal('product-modal');
+    showToast('삭제 완료 ✓', 'success');
+    selectedProductId = config.products[0]?.id || null;
+    renderTabs();
+    renderCurrentProduct();
+  } catch(e) {
+    showToast(`삭제 실패: ${e.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ═══════════════════════════════════════════════
+// 탭 렌더링
+// ═══════════════════════════════════════════════
+function renderTabs() {
+  const row = document.getElementById('tabs-row');
+  row.innerHTML = '';
+
+  config.products.forEach(product => {
+    const tab = document.createElement('button');
+    tab.className = 'product-tab' + (product.id === selectedProductId ? ' active' : '');
+    tab.innerHTML = product.name + (product.id === selectedProductId ? ' <span class="edit-icon">✏️</span>' : '');
+    tab.addEventListener('click', () => {
+      if (product.id === selectedProductId) {
+        openEditProduct(product.id);
+      } else {
+        selectedProductId = product.id;
+        selectedKeyword = null;
+        renderTabs();
+        renderCurrentProduct();
+      }
+    });
+    row.appendChild(tab);
+  });
+
+  const addBtn = document.createElement('button');
+  addBtn.className = 'add-tab-btn';
+  addBtn.textContent = '+ 상품 추가';
+  addBtn.addEventListener('click', openAddProduct);
+  row.appendChild(addBtn);
+}
+
+// ═══════════════════════════════════════════════
+// 현재 선택된 상품 렌더링
+// ═══════════════════════════════════════════════
+function renderCurrentProduct() {
+  if (!selectedProductId) {
+    renderEmptyState();
+    return;
+  }
+  const product  = config.products.find(p => p.id === selectedProductId);
+  const prodData = rankings.products?.[selectedProductId] || {};
+  renderCards(product, prodData);
+  updateMainChart(product, prodData);
+  renderBarChart(product, prodData);
+}
+
+function renderEmptyState() {
+  document.getElementById('cards-grid').innerHTML = `
+    <div class="empty-state" style="grid-column:1/-1">
+      <div class="big">📦</div>
+      상품을 추가해서 순위를 추적해보세요
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════
+// 순위 카드 렌더링
+// ═══════════════════════════════════════════════
+function renderCards(product, prodData) {
   const grid = document.getElementById('cards-grid');
-  const keywords = Object.keys(data.keywords);
   grid.innerHTML = '';
 
-  keywords.forEach((kw, i) => {
-    const history = data.keywords[kw];
-    const latest = [...history].reverse().find(h => h.rank !== null);
-    const prev = [...history].reverse().find((h, idx) => idx > 0 && h.rank !== null);
+  if (!product || product.keywords.length === 0) {
+    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">등록된 키워드가 없습니다</div>';
+    return;
+  }
 
-    const currentRank = latest ? latest.rank : null;
-    let changeTxt = '', changeClass = 'neutral', arrow = '—';
+  product.keywords.forEach((kw, i) => {
+    const history = prodData[kw] || [];
+    const latest  = [...history].reverse().find(h => h.rank !== null);
+    const prev    = [...history].reverse().find((h, idx) => idx > 0 && h.rank !== null);
+    const currentRank = latest?.rank ?? null;
 
+    let changeTxt = '첫 수집', changeClass = 'neutral', arrow = '—';
     if (currentRank && prev) {
-      const diff = prev.rank - currentRank; // 양수 = 순위 상승
-      if (diff > 0) {
-        changeTxt = `${diff}위 상승`;
-        changeClass = 'up';
-        arrow = '▲';
-      } else if (diff < 0) {
-        changeTxt = `${Math.abs(diff)}위 하락`;
-        changeClass = 'down';
-        arrow = '▼';
-      } else {
-        changeTxt = '변동 없음';
-        arrow = '—';
-      }
+      const diff = prev.rank - currentRank;
+      if (diff > 0)      { changeTxt = `${diff}위 상승`;           changeClass = 'up';   arrow = '▲'; }
+      else if (diff < 0) { changeTxt = `${Math.abs(diff)}위 하락`; changeClass = 'down'; arrow = '▼'; }
+      else               { changeTxt = '변동 없음'; }
     } else if (!currentRank) {
       changeTxt = '100위 밖';
-    } else {
-      changeTxt = '첫 수집';
     }
 
+    const color = PALETTE[i % PALETTE.length];
     const card = document.createElement('div');
     card.className = 'rank-card' + (selectedKeyword === kw ? ' active' : '');
-    card.dataset.kw = kw;
-    card.style.setProperty('--accent', PALETTE[i % PALETTE.length]);
-
+    card.style.setProperty('--card-color', color);
     card.innerHTML = `
       <div class="card-keyword" title="${kw}">${kw}</div>
       ${currentRank
-        ? `<div class="card-rank">${currentRank}<span class="unit">위</span></div>`
-        : `<div class="card-rank no-rank">100위 밖</div>`
-      }
+        ? `<div class="card-rank" style="color:${color}">${currentRank}<span class="unit">위</span></div>`
+        : `<div class="card-rank no-rank">100위 밖</div>`}
       <div class="card-change ${changeClass}">
-        <span class="change-arrow">${arrow}</span>
-        <span>${changeTxt}</span>
-      </div>
-    `;
-
+        <span>${arrow}</span><span>${changeTxt}</span>
+      </div>`;
     card.addEventListener('click', () => {
       selectedKeyword = selectedKeyword === kw ? null : kw;
-      renderCards(allData);
-      updateMainChart(allData);
+      renderCards(product, prodData);
+      updateMainChart(product, prodData);
     });
-
     grid.appendChild(card);
   });
 }
 
-// =====================================================
-// 메인 라인 차트 (순위 변동 추이)
-// =====================================================
-function getChartDatasets(data) {
-  const keywords = Object.keys(data.keywords);
-  const targetKws = selectedKeyword ? [selectedKeyword] : keywords;
+// ═══════════════════════════════════════════════
+// 라인 차트
+// ═══════════════════════════════════════════════
+function updateMainChart(product, prodData) {
+  if (!product) return;
+  const keywords = product.keywords;
+  const target   = selectedKeyword ? [selectedKeyword] : keywords;
+  document.getElementById('selected-kw-label').textContent = selectedKeyword || '전체';
 
-  // 전체 날짜 수집
   const allDates = new Set();
-  keywords.forEach(kw => data.keywords[kw].forEach(h => allDates.add(h.date)));
+  keywords.forEach(kw => (prodData[kw] || []).forEach(h => allDates.add(h.date)));
   const dates = [...allDates].sort();
 
-  const datasets = targetKws.map((kw, i) => {
-    const colorIdx = keywords.indexOf(kw);
-    const color = PALETTE[colorIdx % PALETTE.length];
-    const history = data.keywords[kw];
-    const rankMap = {};
-    history.forEach(h => { rankMap[h.date] = h.rank; });
-
+  const datasets = target.map(kw => {
+    const color = PALETTE[keywords.indexOf(kw) % PALETTE.length];
+    const map   = {};
+    (prodData[kw] || []).forEach(h => { map[h.date] = h.rank; });
     return {
       label: kw,
-      data: dates.map(d => rankMap[d] ?? null),
+      data: dates.map(d => map[d] ?? null),
       borderColor: color,
       backgroundColor: color + '22',
       borderWidth: 2,
@@ -414,21 +862,12 @@ function getChartDatasets(data) {
       pointHoverRadius: 6,
       spanGaps: true,
       tension: 0.3,
-      fill: selectedKeyword ? true : false,
+      fill: !!selectedKeyword,
     };
   });
 
-  return { dates, datasets };
-}
-
-function updateMainChart(data) {
-  const kw = selectedKeyword || '전체';
-  document.getElementById('selected-kw-label').textContent = kw;
-
-  const { dates, datasets } = getChartDatasets(data);
-
   if (mainChart) {
-    mainChart.data.labels = dates;
+    mainChart.data.labels   = dates;
     mainChart.data.datasets = datasets;
     mainChart.update();
   } else {
@@ -447,89 +886,67 @@ function updateMainChart(data) {
             borderWidth: 1,
             titleColor: '#f0eff4',
             bodyColor: '#8b8a9a',
-            callbacks: {
-              label: ctx => ctx.raw ? ` ${ctx.dataset.label}: ${ctx.raw}위` : ` ${ctx.dataset.label}: 100위 밖`
-            }
+            callbacks: { label: c => c.raw ? ` ${c.dataset.label}: ${c.raw}위` : ` ${c.dataset.label}: 100위 밖` }
           }
         },
         scales: {
           x: {
             grid: { color: 'rgba(255,255,255,0.05)' },
-            ticks: {
-              color: '#8b8a9a',
-              font: { size: 11 },
-              maxTicksLimit: 10,
-              maxRotation: 30
-            }
+            ticks: { color: '#8b8a9a', font: { size: 11 }, maxTicksLimit: 10, maxRotation: 30 }
           },
           y: {
-            reverse: true, // 1위가 위에 오도록
+            reverse: true,
             grid: { color: 'rgba(255,255,255,0.05)' },
-            ticks: {
-              color: '#8b8a9a',
-              font: { size: 11 },
-              callback: v => `${v}위`
-            },
-            title: {
-              display: true,
-              text: '← 상위 노출',
-              color: '#8b8a9a',
-              font: { size: 10 }
-            }
+            ticks: { color: '#8b8a9a', font: { size: 11 }, callback: v => `${v}위` },
+            title: { display: true, text: '← 상위 노출', color: '#8b8a9a', font: { size: 10 } }
           }
         }
       }
     });
   }
 
-  // 범례 렌더링
-  renderLegend(data, datasets);
+  renderLegend(keywords, datasets);
 }
 
-function renderLegend(data, datasets) {
-  const legend = document.getElementById('chart-legend');
-  const keywords = Object.keys(data.keywords);
-  legend.innerHTML = datasets.map(ds => {
-    const isActive = !selectedKeyword || selectedKeyword === ds.label;
-    return `
-      <div class="legend-item ${isActive ? 'active' : ''}" data-kw="${ds.label}">
-        <div class="legend-dot" style="background:${ds.borderColor}"></div>
-        ${ds.label}
-      </div>
-    `;
+function renderLegend(keywords, datasets) {
+  document.getElementById('chart-legend').innerHTML = datasets.map(ds => {
+    const active = !selectedKeyword || selectedKeyword === ds.label;
+    return `<div class="legend-item ${active ? 'active' : ''}" data-kw="${ds.label}">
+      <div class="legend-dot" style="background:${ds.borderColor}"></div>${ds.label}
+    </div>`;
   }).join('');
-
-  legend.querySelectorAll('.legend-item').forEach(el => {
+  document.querySelectorAll('.legend-item').forEach(el => {
     el.addEventListener('click', () => {
       const kw = el.dataset.kw;
       selectedKeyword = selectedKeyword === kw ? null : kw;
-      renderCards(allData);
-      updateMainChart(allData);
+      const product  = config.products.find(p => p.id === selectedProductId);
+      const prodData = rankings.products?.[selectedProductId] || {};
+      renderCards(product, prodData);
+      updateMainChart(product, prodData);
     });
   });
 }
 
-// =====================================================
-// 바 차트 (최신 순위 비교)
-// =====================================================
-function renderBarChart(data) {
-  const keywords = Object.keys(data.keywords);
-  const ranks = keywords.map(kw => {
-    const history = data.keywords[kw];
-    const latest = [...history].reverse().find(h => h.rank !== null);
-    return latest ? latest.rank : null;
+// ═══════════════════════════════════════════════
+// 바 차트
+// ═══════════════════════════════════════════════
+function renderBarChart(product, prodData) {
+  if (!product) return;
+  const keywords = product.keywords;
+  const ranks    = keywords.map(kw => {
+    const h = [...(prodData[kw] || [])].reverse().find(h => h.rank !== null);
+    return h?.rank ?? null;
   });
-
-  // 바 차트 높이를 키워드 수에 맞게 조정
-  const wrapEl = document.getElementById('bar-chart-wrap');
-  wrapEl.style.height = Math.max(160, keywords.length * 44 + 60) + 'px';
-
   const colors = keywords.map((_, i) => PALETTE[i % PALETTE.length]);
+
+  const wrap = document.getElementById('bar-chart-wrap');
+  wrap.style.height = Math.max(140, keywords.length * 44 + 60) + 'px';
 
   if (barChart) {
     barChart.data.labels = keywords;
     barChart.data.datasets[0].data = ranks;
     barChart.data.datasets[0].backgroundColor = colors.map(c => c + 'bb');
+    barChart.data.datasets[0].borderColor = colors;
     barChart.update();
     return;
   }
@@ -539,14 +956,7 @@ function renderBarChart(data) {
     type: 'bar',
     data: {
       labels: keywords,
-      datasets: [{
-        label: '현재 순위',
-        data: ranks,
-        backgroundColor: colors.map(c => c + 'bb'),
-        borderColor: colors,
-        borderWidth: 1.5,
-        borderRadius: 6,
-      }]
+      datasets: [{ label: '현재 순위', data: ranks, backgroundColor: colors.map(c => c + 'bb'), borderColor: colors, borderWidth: 1.5, borderRadius: 6 }]
     },
     options: {
       indexAxis: 'y',
@@ -558,69 +968,46 @@ function renderBarChart(data) {
           backgroundColor: '#1a1a22',
           borderColor: 'rgba(255,255,255,0.1)',
           borderWidth: 1,
-          callbacks: {
-            label: ctx => ctx.raw ? ` ${ctx.raw}위` : ' 100위 밖'
-          }
+          callbacks: { label: c => c.raw ? ` ${c.raw}위` : ' 100위 밖' }
         }
       },
       scales: {
-        x: {
-          reverse: true,
-          grid: { color: 'rgba(255,255,255,0.05)' },
-          ticks: { color: '#8b8a9a', font: { size: 11 }, callback: v => `${v}위` }
-        },
-        y: {
-          grid: { display: false },
-          ticks: { color: '#f0eff4', font: { size: 12 } }
-        }
+        x: { reverse: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8b8a9a', font: { size: 11 }, callback: v => `${v}위` } },
+        y: { grid: { display: false }, ticks: { color: '#f0eff4', font: { size: 12 } } }
       }
     }
   });
 }
 
-// =====================================================
-// 메인 실행
-// =====================================================
+// ═══════════════════════════════════════════════
+// 초기화
+// ═══════════════════════════════════════════════
 async function init() {
-  allData = await loadData();
-
-  // 헤더 업데이트
-  document.getElementById('store-id-badge').textContent = allData.store_id;
-  document.getElementById('last-updated').textContent =
-    `마지막 업데이트: ${allData.last_updated || '알 수 없음'}`;
-
-  renderCards(allData);
-  updateMainChart(allData);
-  renderBarChart(allData);
-}
-
-// =====================================================
-// 샘플 데이터 (rankings.json이 없을 때 사용)
-// =====================================================
-const SAMPLE_DATA = {
-  "store_id": "내스토어",
-  "last_updated": "데이터 없음",
-  "keywords": {
-    "샘플 키워드 A": [
-      { "date": "2026-05-25", "rank": 20 },
-      { "date": "2026-05-26", "rank": 15 },
-      { "date": "2026-05-27", "rank": 12 },
-      { "date": "2026-05-28", "rank": 10 },
-      { "date": "2026-05-29", "rank": 8 },
-      { "date": "2026-05-30", "rank": 6 },
-      { "date": "2026-05-31", "rank": 5 }
-    ],
-    "샘플 키워드 B": [
-      { "date": "2026-05-25", "rank": null },
-      { "date": "2026-05-26", "rank": 80 },
-      { "date": "2026-05-27", "rank": 65 },
-      { "date": "2026-05-28", "rank": 50 },
-      { "date": "2026-05-29", "rank": 42 },
-      { "date": "2026-05-30", "rank": 35 },
-      { "date": "2026-05-31", "rank": 28 }
-    ]
+  try {
+    const [cfgResp, rkResp] = await Promise.all([
+      fetch('./config.json?t=' + Date.now()),
+      fetch('./data/rankings.json?t=' + Date.now())
+    ]);
+    config   = cfgResp.ok ? await cfgResp.json() : { products: [] };
+    rankings = rkResp.ok  ? await rkResp.json()  : { last_updated: null, products: {} };
+  } catch(e) {
+    config   = { products: [] };
+    rankings = { last_updated: null, products: {} };
   }
-};
+
+  document.getElementById('last-updated').textContent =
+    rankings.last_updated ? `마지막 업데이트: ${rankings.last_updated}` : '아직 수집된 데이터가 없습니다';
+
+  if (config.products.length > 0) selectedProductId = config.products[0].id;
+
+  renderTabs();
+  renderCurrentProduct();
+
+  // 설정이 안 되어 있으면 안내
+  if (!GH.isConfigured()) {
+    setTimeout(() => showToast('⚙️ GitHub 설정을 완료하면 웹에서 상품을 추가할 수 있습니다', ''), 1500);
+  }
+}
 
 init();
 </script>

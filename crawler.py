@@ -1,6 +1,6 @@
 """
 스마트스토어 키워드 순위 추적기 - 크롤러
-매일 실행하면 data/rankings.json에 순위가 누적 저장됩니다.
+config.json에 등록된 상품/키워드를 조회하여 data/rankings.json에 누적 저장합니다.
 """
 
 import json
@@ -13,33 +13,16 @@ from pathlib import Path
 import requests
 
 # ============================================================
-# 여기를 내 정보로 바꾸세요
+# 파일 경로 (건드리지 마세요)
 # ============================================================
+BASE_DIR    = Path(__file__).parent
+CONFIG_FILE = BASE_DIR / "config.json"
+DATA_FILE   = BASE_DIR / "data" / "rankings.json"
 
-MY_STORE_ID = "minimalsign"
-
-# 순위를 추적할 특정 상품 ID
-# https://smartstore.naver.com/minimalsign/products/4061216291
-MY_PRODUCT_ID = "4061216291"
-
-# 추적할 키워드 목록
-KEYWORDS = [
-    "미니간판",
-    "카페간판",
-    "스텐간판",
-]
-
-# 몇 위까지 검색할지 (네이버 검색 API 최대 100개)
 MAX_RANK = 100
 
-# 데이터 저장 경로
-DATA_FILE = Path(__file__).parent / "data" / "rankings.json"
-
-# ============================================================
-# 네이버 검색 API 키 (환경변수 우선, 없으면 아래 직접 입력)
-# ============================================================
-
-CLIENT_ID     = os.environ.get("NAVER_CLIENT_ID",     "")
+# 네이버 검색 API 키 (GitHub Secrets에서 주입)
+CLIENT_ID     = os.environ.get("NAVER_CLIENT_ID", "")
 CLIENT_SECRET = os.environ.get("NAVER_CLIENT_SECRET", "")
 
 # ============================================================
@@ -52,7 +35,7 @@ def get_rank(keyword: str, product_id: str, max_rank: int = 100) -> int | None:
         "X-Naver-Client-Secret": CLIENT_SECRET,
     }
 
-    display = 100  # 한 번에 최대 100개
+    display = 100
     start = 1
     found_count = 0
 
@@ -61,7 +44,7 @@ def get_rank(keyword: str, product_id: str, max_rank: int = 100) -> int | None:
             "query": keyword,
             "display": display,
             "start": start,
-            "sort": "sim",  # 유사도순 (= 기본 정렬)
+            "sort": "sim",
         }
 
         try:
@@ -82,8 +65,7 @@ def get_rank(keyword: str, product_id: str, max_rank: int = 100) -> int | None:
 
         for item in items:
             found_count += 1
-            link = item.get("link", "") + item.get("productId", "")
-            mall_name = item.get("mallName", "")
+            link = item.get("link", "")
             product_id_field = str(item.get("productId", ""))
 
             if product_id in link or product_id in product_id_field:
@@ -92,7 +74,6 @@ def get_rank(keyword: str, product_id: str, max_rank: int = 100) -> int | None:
             if found_count >= max_rank:
                 return None
 
-        # 다음 페이지 (API start 최대 1000)
         start += display
         if start > 1000:
             break
@@ -102,12 +83,17 @@ def get_rank(keyword: str, product_id: str, max_rank: int = 100) -> int | None:
     return None
 
 
+def load_config() -> dict:
+    with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
 def load_data() -> dict:
     DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
     if DATA_FILE.exists():
         with open(DATA_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
-    return {"store_id": MY_STORE_ID, "keywords": {}}
+    return {"last_updated": "", "products": {}}
 
 
 def save_data(data: dict):
@@ -117,38 +103,46 @@ def save_data(data: dict):
 
 
 def main():
-    today = datetime.now().strftime("%Y-%m-%d")
-    print(f"\n🔍 순위 조회 시작 [{today}]")
-    print(f"   스토어: {MY_STORE_ID}")
-    print(f"   상품ID: {MY_PRODUCT_ID}")
-    print(f"   키워드: {len(KEYWORDS)}개\n")
-
+    config = load_config()
     data = load_data()
-    data["store_id"] = MY_STORE_ID
+    today = datetime.now().strftime("%Y-%m-%d")
     data["last_updated"] = today
 
-    for keyword in KEYWORDS:
-        print(f"📌 '{keyword}' 조회 중...")
-        rank = get_rank(keyword, MY_PRODUCT_ID, MAX_RANK)
+    products = config.get("products", [])
+    print(f"\n🔍 순위 조회 시작 [{today}]")
+    print(f"   상품: {len(products)}개\n")
 
-        if rank:
-            print(f"   ✅ {rank}위 발견!")
-        else:
-            print(f"   ❌ {MAX_RANK}위 내 없음")
+    for product in products:
+        pid      = product["id"]
+        name     = product["name"]
+        keywords = product["keywords"]
 
-        if keyword not in data["keywords"]:
-            data["keywords"][keyword] = []
+        print(f"📦 {name} (ID: {pid})")
 
-        history = data["keywords"][keyword]
-        existing = next((h for h in history if h["date"] == today), None)
-        if existing:
-            existing["rank"] = rank
-        else:
-            history.append({"date": today, "rank": rank})
+        if pid not in data["products"]:
+            data["products"][pid] = {}
 
-        data["keywords"][keyword].sort(key=lambda x: x["date"])
+        for keyword in keywords:
+            print(f"  📌 '{keyword}' 조회 중...")
+            rank = get_rank(keyword, pid, MAX_RANK)
 
-        time.sleep(random.uniform(1.0, 2.0))
+            if rank:
+                print(f"     ✅ {rank}위 발견!")
+            else:
+                print(f"     ❌ {MAX_RANK}위 밖")
+
+            if keyword not in data["products"][pid]:
+                data["products"][pid][keyword] = []
+
+            history = data["products"][pid][keyword]
+            existing = next((h for h in history if h["date"] == today), None)
+            if existing:
+                existing["rank"] = rank
+            else:
+                history.append({"date": today, "rank": rank})
+
+            data["products"][pid][keyword].sort(key=lambda x: x["date"])
+            time.sleep(random.uniform(1.0, 2.0))
 
     save_data(data)
     print("\n✨ 모든 키워드 조회 완료!")
