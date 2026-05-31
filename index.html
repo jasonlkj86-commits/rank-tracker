@@ -254,8 +254,8 @@ input::placeholder { color: var(--muted); }
     </div>
     <div class="modal-body">
       <div>
-        <label>스마트스토어 상품 URL</label>
-        <input id="p-url" placeholder="https://smartstore.naver.com/storeid/products/1234567890" oninput="parseProductUrl(this.value)">
+        <label>상품 URL (스마트스토어 또는 네이버 카탈로그)</label>
+        <input id="p-url" placeholder="smartstore.naver.com/storeid/products/… 또는 search.shopping.naver.com/catalog/…" oninput="parseProductUrl(this.value)">
         <div id="parsed-info" style="margin-top:0.5rem"></div>
       </div>
       <div><label>상품 이름 (표시용)</label><input id="p-name" placeholder="예: 미니 간판"></div>
@@ -413,7 +413,7 @@ function renderDashboard() {
       <div class="card-top">
         <div>
           <div class="card-name">${product.name}</div>
-          <div class="card-store">${product.store_id}</div>
+          <div class="card-store">${product.type === 'catalog' ? '🗂 카탈로그 상품' : product.store_id}</div>
         </div>
         <span class="card-arrow">›</span>
       </div>
@@ -574,7 +574,9 @@ function openEditProduct(productId) {
   if (!p) return;
   editingProductId = productId; kwList = [...p.keywords];
   document.getElementById('product-modal-title').textContent = '상품 편집';
-  document.getElementById('p-url').value = `https://smartstore.naver.com/${p.store_id}/products/${p.id}`;
+  document.getElementById('p-url').value = p.type === 'catalog'
+    ? `https://search.shopping.naver.com/catalog/${p.id}`
+    : `https://smartstore.naver.com/${p.store_id}/products/${p.id}`;
   document.getElementById('p-name').value = p.name;
   document.getElementById('delete-product-btn').style.display = 'block';
   parseProductUrl(document.getElementById('p-url').value);
@@ -582,11 +584,25 @@ function openEditProduct(productId) {
 }
 function parseProductUrl(url) {
   const box = document.getElementById('parsed-info');
-  const m = url.match(/smartstore\.naver\.com\/([^/]+)\/products\/(\d+)/);
-  if (!m) { box.innerHTML = url ? `<div class="parsed-box error">올바른 URL을 입력하세요</div>` : ''; return null; }
-  const [, storeId, productId] = m;
-  box.innerHTML = `<div class="parsed-box">스토어: <span>${storeId}</span> &nbsp;|&nbsp; 상품ID: <span>${productId}</span></div>`;
-  return { storeId, productId };
+
+  // 스마트스토어 상품 URL
+  const storeMatch = url.match(/smartstore\.naver\.com\/([^/]+)\/products\/(\d+)/);
+  if (storeMatch) {
+    const [, storeId, productId] = storeMatch;
+    box.innerHTML = `<div class="parsed-box">유형: <span>스마트스토어</span> &nbsp;|&nbsp; 스토어: <span>${storeId}</span> &nbsp;|&nbsp; 상품ID: <span>${productId}</span></div>`;
+    return { storeId, productId, type: 'store' };
+  }
+
+  // 네이버 카탈로그 URL
+  const catalogMatch = url.match(/search\.shopping\.naver\.com\/catalog\/(\d+)/);
+  if (catalogMatch) {
+    const [, catalogId] = catalogMatch;
+    box.innerHTML = `<div class="parsed-box">유형: <span>카탈로그</span> &nbsp;|&nbsp; 카탈로그ID: <span>${catalogId}</span></div>`;
+    return { storeId: 'naver-catalog', productId: catalogId, type: 'catalog' };
+  }
+
+  box.innerHTML = url ? `<div class="parsed-box error">스마트스토어 또는 카탈로그 URL을 입력하세요</div>` : '';
+  return null;
 }
 function renderKeywordTags() {
   document.getElementById('keyword-tags').innerHTML = kwList.map((kw,i) =>
@@ -614,7 +630,7 @@ async function saveProduct() {
   try {
     const { content: cfg, sha } = await GH.readFile('config.json');
     const products = cfg.products || [];
-    const newP = { id: parsed.productId, name, store_id: parsed.storeId, keywords: kwList };
+    const newP = { id: parsed.productId, name, store_id: parsed.storeId, type: parsed.type || 'store', keywords: kwList };
     if (editingProductId) { const idx = products.findIndex(p=>p.id===editingProductId); if(idx>=0) products[idx]=newP; else products.push(newP); }
     else { if (products.find(p=>p.id===parsed.productId)) { showToast('이미 등록된 상품입니다','error'); return; } products.push(newP); }
     cfg.products = products;
