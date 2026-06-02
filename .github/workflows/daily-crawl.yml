@@ -1,10 +1,8 @@
 name: 매일 순위 자동 수집
 
 on:
-  schedule:
-    # 매일 오전 9시 (한국시간 = UTC+9, UTC 기준 0시)
-    - cron: '0 0 * * *'
   workflow_dispatch:
+    # cron-job.org에서 매일 오전 9시(한국시간)에 자동 트리거
     # GitHub에서 수동으로도 실행 가능
 
 jobs:
