@@ -8,7 +8,7 @@ import json
 import os
 import time
 import random
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 import requests
@@ -110,8 +110,10 @@ def save_data(data: dict):
 def main():
     config = load_config()
     data = load_data()
-    today = datetime.now().strftime("%Y-%m-%d")
-    data["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+    KST = timezone(timedelta(hours=9))
+    now_kst = datetime.now(KST)
+    today = now_kst.strftime("%Y-%m-%d")
+    data["last_updated"] = now_kst.strftime("%Y-%m-%d %H:%M")
 
     products = config.get("products", [])
     config_updated = False
