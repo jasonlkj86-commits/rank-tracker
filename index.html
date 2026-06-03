@@ -170,20 +170,41 @@ input::placeholder { color: var(--muted); }
 .toast.success { border-color: rgba(78,205,196,0.4); color: var(--up); }
 .toast.error { border-color: rgba(255,107,107,0.4); color: var(--down); }
 
-/* ── 순서 변경 버튼 ── */
-.sort-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--muted); font-size: 0.8rem; width: 26px; height: 26px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0; }
+/* ── 순서 변경 버튼 (hover/long-press 때만 표시) ── */
+.sort-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--muted); font-size: 0.7rem; width: 20px; height: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0; }
 .sort-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
 .sort-btn:disabled { opacity: 0.2; cursor: not-allowed; }
-.card-sort-btns { display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; }
+.card-sort-btns { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; opacity: 0; transition: opacity 0.2s; }
+.product-card:hover .card-sort-btns { opacity: 1; }
+.product-card.touch-active .card-sort-btns { opacity: 1; }
+
+/* ── 상세 키워드 카드 순서 변경 버튼 ── */
+.rank-card-sort-btns { position: absolute; top: 6px; right: 6px; display: flex; gap: 2px; opacity: 0; transition: opacity 0.2s; }
+.rank-card:hover .rank-card-sort-btns { opacity: 1; }
+.rank-card.touch-active .rank-card-sort-btns { opacity: 1; }
+.rank-sort-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; color: var(--muted); font-size: 0.65rem; width: 18px; height: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+.rank-sort-btn:hover { color: var(--text); }
+.rank-sort-btn:disabled { opacity: 0.2; cursor: not-allowed; }
+
+/* ── 키워드 더보기 ── */
+.kw-more { font-size: 0.72rem; color: var(--muted); padding: 0.2rem 0.75rem; opacity: 0.6; }
 
 @media (max-width: 600px) {
   body { padding: 1.25rem 1rem 3rem; }
   .header { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
-  .products-grid { grid-template-columns: 1fr 1fr; }
+  .products-grid { grid-template-columns: 1fr; }
   .cards-grid { grid-template-columns: 1fr 1fr; }
-  .card-thumb { width: 42px; height: 42px; }
-  .card-thumb-placeholder { width: 42px; height: 42px; font-size: 1.2rem; }
+  .product-card { padding: 0.9rem; border-radius: 14px; }
+  .card-top { margin-bottom: 0.65rem; gap: 0.5rem; }
+  .card-thumb { width: 36px; height: 36px; border-radius: 8px; }
+  .card-thumb-placeholder { width: 36px; height: 36px; border-radius: 8px; font-size: 1rem; }
   .card-name { font-size: 0.8rem; }
+  .card-store { font-size: 0.68rem; }
+  .kw-list { gap: 0.3rem; }
+  .kw-row { padding: 0.35rem 0.6rem; border-radius: 8px; }
+  .kw-name { font-size: 0.75rem; }
+  .kw-rank { font-size: 0.88rem; }
+  .kw-change { font-size: 0.68rem; min-width: 44px; }
 }
 </style>
 </head>
@@ -441,8 +462,9 @@ function renderDashboard() {
     card.className = 'product-card';
     card.style.setProperty('--card-accent', accentColor);
 
-    // 키워드 행
-    const kwRows = product.keywords.map((kw, ki) => {
+    // 키워드 행 (최대 3개 표시)
+    const MAX_KW = 3;
+    const kwRows = product.keywords.slice(0, MAX_KW).map((kw, ki) => {
       const history = prodData[kw] || [];
       const { current, prev } = getChange(history);
       const ch = changeInfo(current, prev);
@@ -458,6 +480,8 @@ function renderDashboard() {
           </div>
         </div>`;
     }).join('');
+    const moreCount = product.keywords.length - MAX_KW;
+    const moreRow = moreCount > 0 ? `<div class="kw-more">+${moreCount}개 더보기...</div>` : '';
 
     const total = config.products.length;
     card.innerHTML = `
@@ -475,10 +499,16 @@ function renderDashboard() {
         </div>
       </div>
       <div class="kw-list">
-        ${product.keywords.length > 0 ? kwRows : '<div class="card-no-data">키워드 없음</div>'}
+        ${product.keywords.length > 0 ? kwRows + moreRow : '<div class="card-no-data">키워드 없음</div>'}
       </div>`;
 
     card.addEventListener('click', () => showDetail(product.id));
+
+    // 모바일 길게 누르기
+    let pressTimer;
+    card.addEventListener('touchstart', () => { pressTimer = setTimeout(() => card.classList.add('touch-active'), 500); });
+    card.addEventListener('touchend', () => { clearTimeout(pressTimer); setTimeout(() => card.classList.remove('touch-active'), 2000); });
+
     grid.appendChild(card);
   });
 }
@@ -507,6 +537,7 @@ function renderDetailCards() {
   const prodData = rankings.products?.[selectedProductId] || {};
   if (!product) return;
 
+  const total = product.keywords.length;
   product.keywords.forEach((kw, i) => {
     const history = prodData[kw] || [];
     const { current, prev } = getChange(history);
@@ -517,6 +548,10 @@ function renderDetailCards() {
     card.className = 'rank-card' + (selectedKeyword === kw ? ' active' : '');
     card.style.setProperty('--card-color', color);
     card.innerHTML = `
+      <div class="rank-card-sort-btns" onclick="event.stopPropagation()">
+        <button class="rank-sort-btn" ${i === 0 ? 'disabled' : ''} onclick="moveKeyword('${selectedProductId}', ${i}, -1)" title="앞으로">◀</button>
+        <button class="rank-sort-btn" ${i === total-1 ? 'disabled' : ''} onclick="moveKeyword('${selectedProductId}', ${i}, 1)" title="뒤로">▶</button>
+      </div>
       <div class="card-keyword" title="${kw}">${kw}</div>
       ${current ? `<div class="card-rank" style="color:${color}">${current}<span class="unit">위</span></div>`
                 : `<div class="card-rank no-rank">100위 밖</div>`}
@@ -526,6 +561,12 @@ function renderDetailCards() {
       renderDetailCards();
       updateMainChart();
     });
+
+    // 모바일 길게 누르기
+    let pressTimer;
+    card.addEventListener('touchstart', () => { pressTimer = setTimeout(() => card.classList.add('touch-active'), 500); });
+    card.addEventListener('touchend', () => { clearTimeout(pressTimer); setTimeout(() => card.classList.remove('touch-active'), 2000); });
+
     grid.appendChild(card);
   });
 }
@@ -674,6 +715,27 @@ function addKeywordTag() {
   kwList.push(kw); input.value = ''; renderKeywordTags(); input.focus();
 }
 function kwInputKeydown(e) { if (e.key==='Enter') { e.preventDefault(); addKeywordTag(); } }
+
+async function moveKeyword(productId, idx, dir) {
+  const product = config.products.find(p => p.id === productId);
+  if (!product) return;
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= product.keywords.length) return;
+  const arr = product.keywords;
+  [arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]];
+  selectedKeyword = null;
+  renderDetailCards();
+  updateMainChart();
+  renderBarChart();
+  if (!GH.isConfigured()) return;
+  try {
+    const { sha } = await GH.readFile('config.json');
+    await GH.writeFile('config.json', config, sha, '🔀 키워드 순서 변경');
+    showToast('✅ 순서 저장됨', 'success');
+  } catch(e) {
+    showToast('❌ 저장 실패: ' + e.message, 'error');
+  }
+}
 
 async function moveProduct(idx, dir) {
   const newIdx = idx + dir;
