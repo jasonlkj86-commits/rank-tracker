@@ -54,6 +54,17 @@
         "병원현판"
       ],
       "image": "https://shopping-phinf.pstatic.net/main_9032701/90327011263.jpg"
+    },
+    {
+      "id": "56710259034",
+      "name": "포멕스 주소현판",
+      "store_id": "naver-catalog",
+      "type": "catalog",
+      "keywords": [
+        "건물번호판",
+        "도로명주소판",
+        "자율형건물번호판"
+      ]
     }
   ]
 }
