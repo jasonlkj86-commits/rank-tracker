@@ -170,11 +170,20 @@ input::placeholder { color: var(--muted); }
 .toast.success { border-color: rgba(78,205,196,0.4); color: var(--up); }
 .toast.error { border-color: rgba(255,107,107,0.4); color: var(--down); }
 
+/* ── 순서 변경 버튼 ── */
+.sort-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--muted); font-size: 0.8rem; width: 26px; height: 26px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0; }
+.sort-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
+.sort-btn:disabled { opacity: 0.2; cursor: not-allowed; }
+.card-sort-btns { display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; }
+
 @media (max-width: 600px) {
   body { padding: 1.25rem 1rem 3rem; }
   .header { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
-  .products-grid { grid-template-columns: 1fr; }
+  .products-grid { grid-template-columns: 1fr 1fr; }
   .cards-grid { grid-template-columns: 1fr 1fr; }
+  .card-thumb { width: 42px; height: 42px; }
+  .card-thumb-placeholder { width: 42px; height: 42px; font-size: 1.2rem; }
+  .card-name { font-size: 0.8rem; }
 }
 </style>
 </head>
@@ -450,6 +459,7 @@ function renderDashboard() {
         </div>`;
     }).join('');
 
+    const total = config.products.length;
     card.innerHTML = `
       <div class="card-top">
         ${product.image
@@ -459,7 +469,10 @@ function renderDashboard() {
           <div class="card-name" title="${product.name}">${product.name}</div>
           <div class="card-store">${product.type === 'catalog' ? '🗂 카탈로그' : product.store_id}</div>
         </div>
-        <span class="card-arrow">›</span>
+        <div class="card-sort-btns" onclick="event.stopPropagation()">
+          <button class="sort-btn" ${pi === 0 ? 'disabled' : ''} onclick="moveProduct(${pi}, -1)" title="위로">▲</button>
+          <button class="sort-btn" ${pi === total - 1 ? 'disabled' : ''} onclick="moveProduct(${pi}, 1)" title="아래로">▼</button>
+        </div>
       </div>
       <div class="kw-list">
         ${product.keywords.length > 0 ? kwRows : '<div class="card-no-data">키워드 없음</div>'}
@@ -661,6 +674,22 @@ function addKeywordTag() {
   kwList.push(kw); input.value = ''; renderKeywordTags(); input.focus();
 }
 function kwInputKeydown(e) { if (e.key==='Enter') { e.preventDefault(); addKeywordTag(); } }
+
+async function moveProduct(idx, dir) {
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= config.products.length) return;
+  const arr = config.products;
+  [arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]];
+  renderDashboard();
+  if (!GH.isConfigured()) return;
+  try {
+    const { sha } = await GH.readFile('config.json');
+    await GH.writeFile('config.json', config, sha);
+    showToast('✅ 순서 저장됨', 'success');
+  } catch(e) {
+    showToast('❌ 저장 실패: ' + e.message, 'error');
+  }
+}
 
 async function saveProduct() {
   const url  = document.getElementById('p-url').value.trim();
