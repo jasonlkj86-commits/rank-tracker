@@ -684,7 +684,7 @@ async function moveProduct(idx, dir) {
   if (!GH.isConfigured()) return;
   try {
     const { sha } = await GH.readFile('config.json');
-    await GH.writeFile('config.json', config, sha);
+    await GH.writeFile('config.json', config, sha, '🔀 상품 순서 변경');
     showToast('✅ 순서 저장됨', 'success');
   } catch(e) {
     showToast('❌ 저장 실패: ' + e.message, 'error');
