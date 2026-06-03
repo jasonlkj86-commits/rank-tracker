@@ -111,7 +111,7 @@ def main():
     config = load_config()
     data = load_data()
     today = datetime.now().strftime("%Y-%m-%d")
-    data["last_updated"] = today
+    data["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M")
 
     products = config.get("products", [])
     config_updated = False

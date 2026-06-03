@@ -720,7 +720,7 @@ async function init() {
     rankings = { last_updated: null, products: {} };
   }
   document.getElementById('last-updated').textContent =
-    rankings.last_updated ? `업데이트: ${rankings.last_updated}` : '';
+    rankings.last_updated ? `🕐 ${rankings.last_updated}` : '';
   renderDashboard();
   if (!GH.isConfigured()) {
     setTimeout(() => showToast('⚙️ GitHub 설정을 완료하면 상품을 추가할 수 있습니다',''), 1500);
