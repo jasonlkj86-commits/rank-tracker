@@ -49,16 +49,6 @@
       "image": "https://shopping-phinf.pstatic.net/main_8490966/84909664113.8.jpg"
     },
     {
-      "id": "12782500314",
-      "name": "약력현판",
-      "store_id": "minimalsign",
-      "keywords": [
-        "약력현판",
-        "병원현판"
-      ],
-      "image": "https://shopping-phinf.pstatic.net/main_9032701/90327011263.jpg"
-    },
-    {
       "id": "56710259034",
       "name": "포멕스 주소현판",
       "store_id": "naver-catalog",
@@ -69,6 +59,16 @@
         "자율형건물번호판"
       ],
       "image": "https://shopping-phinf.pstatic.net/main_5671025/56710259034.20250912220358.jpg"
+    },
+    {
+      "id": "12782500314",
+      "name": "약력현판",
+      "store_id": "minimalsign",
+      "keywords": [
+        "약력현판",
+        "병원현판"
+      ],
+      "image": "https://shopping-phinf.pstatic.net/main_9032701/90327011263.jpg"
     }
   ]
 }
