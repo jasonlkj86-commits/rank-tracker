@@ -4,12 +4,14 @@
       "id": "4061216291",
       "name": "메인 미니간판",
       "store_id": "minimalsign",
+      "type": "store",
       "keywords": [
         "미니간판",
         "스텐간판",
-        "카페간판"
-      ],
-      "image": "https://shopping-phinf.pstatic.net/main_8160573/81605736891.jpg"
+        "카페간판",
+        "간판제작",
+        "현판제작"
+      ]
     },
     {
       "id": "12689237082",
