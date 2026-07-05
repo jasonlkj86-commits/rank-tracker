@@ -189,6 +189,12 @@ input::placeholder { color: var(--muted); }
 /* ── 키워드 더보기 ── */
 .kw-more { font-size: 0.72rem; color: var(--muted); padding: 0.2rem 0.75rem; opacity: 0.6; }
 
+/* ── 기간 선택 ── */
+.period-btns { display: flex; gap: 0.4rem; }
+.period-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 100px; padding: 0.25rem 0.75rem; font-size: 0.75rem; color: var(--muted); cursor: pointer; transition: all 0.15s; font-family: var(--font); }
+.period-btn:hover { color: var(--text); }
+.period-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
 @media (max-width: 600px) {
   body { padding: 1.25rem 1rem 3rem; }
   .header { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
@@ -242,7 +248,12 @@ input::placeholder { color: var(--muted); }
   <div class="chart-section">
     <div class="chart-header">
       <div class="chart-title">순위 변동 추이 <span class="kw-badge" id="selected-kw-label">전체</span></div>
-      <div class="chart-note">※ 1위 = 최상단 노출</div>
+      <div class="period-btns">
+        <button class="period-btn" data-days="7" onclick="setPeriod(7)">1주</button>
+        <button class="period-btn active" data-days="14" onclick="setPeriod(14)">2주</button>
+        <button class="period-btn" data-days="30" onclick="setPeriod(30)">1달</button>
+        <button class="period-btn" data-days="0" onclick="setPeriod(0)">전체</button>
+      </div>
     </div>
     <div class="chart-wrap"><canvas id="mainChart"></canvas></div>
     <div class="legend" id="chart-legend"></div>
@@ -320,6 +331,7 @@ let rankings = { last_updated: null, products: {} };
 let currentView = 'dashboard'; // 'dashboard' | 'detail'
 let selectedProductId = null;
 let selectedKeyword   = null;
+let selectedPeriod    = 14;
 let mainChart = null;
 let barChart  = null;
 let editingProductId = null;
@@ -583,7 +595,13 @@ function updateMainChart() {
 
   const allDates = new Set();
   keywords.forEach(kw => (prodData[kw] || []).forEach(h => allDates.add(h.date)));
-  const dates = [...allDates].sort();
+  let dates = [...allDates].sort();
+  if (selectedPeriod > 0) {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - selectedPeriod);
+    const cutoffStr = cutoff.toISOString().slice(0, 10);
+    dates = dates.filter(d => d >= cutoffStr);
+  }
 
   const datasets = target.map(kw => {
     const color = PALETTE[keywords.indexOf(kw) % PALETTE.length];
@@ -715,6 +733,14 @@ function addKeywordTag() {
   kwList.push(kw); input.value = ''; renderKeywordTags(); input.focus();
 }
 function kwInputKeydown(e) { if (e.key==='Enter') { e.preventDefault(); addKeywordTag(); } }
+
+function setPeriod(days) {
+  selectedPeriod = days;
+  document.querySelectorAll('.period-btn').forEach(b => {
+    b.classList.toggle('active', Number(b.dataset.days) === days);
+  });
+  updateMainChart();
+}
 
 async function moveKeyword(productId, idx, dir) {
   const product = config.products.find(p => p.id === productId);
