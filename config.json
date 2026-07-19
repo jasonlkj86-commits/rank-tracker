@@ -26,18 +26,6 @@
       "image": "https://shopping-phinf.pstatic.net/main_9023374/90233748005.1.jpg"
     },
     {
-      "id": "56630496295",
-      "name": "스텐 도로명주소현판",
-      "store_id": "naver-catalog",
-      "type": "catalog",
-      "keywords": [
-        "건물번호판",
-        "자율형건물번호판",
-        "도로명주소판"
-      ],
-      "image": "https://shopping-phinf.pstatic.net/main_5663049/56630496295.20250908064233.jpg"
-    },
-    {
       "id": "56710259034",
       "name": "포멕스 주소현판",
       "store_id": "naver-catalog",
@@ -48,6 +36,18 @@
         "자율형건물번호판"
       ],
       "image": "https://shopping-phinf.pstatic.net/main_5671025/56710259034.20250912220358.jpg"
+    },
+    {
+      "id": "56630496295",
+      "name": "스텐 도로명주소현판",
+      "store_id": "naver-catalog",
+      "type": "catalog",
+      "keywords": [
+        "건물번호판",
+        "자율형건물번호판",
+        "도로명주소판"
+      ],
+      "image": "https://shopping-phinf.pstatic.net/main_5663049/56630496295.20250908064233.jpg"
     },
     {
       "id": "7365163791",
