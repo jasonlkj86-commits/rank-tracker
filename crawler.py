@@ -1,7 +1,7 @@
 """
 스마트스토어 키워드 순위 추적기 - 크롤러
 config.json에 등록된 상품/키워드를 조회하여 data/rankings.json에 누적 저장합니다.
-상품 썸네일 이미지를 자동으로 수집하여 config.json에 저장합니다.
+Playwright로 네이버 쇼핑 페이지를 직접 스크래핑합니다.
 """
 
 import json
@@ -10,8 +10,9 @@ import time
 import random
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
+from urllib.parse import quote
 
-import requests
+from playwright.sync_api import sync_playwright
 
 BASE_DIR    = Path(__file__).parent
 CONFIG_FILE = BASE_DIR / "config.json"
@@ -19,65 +20,61 @@ DATA_FILE   = BASE_DIR / "data" / "rankings.json"
 
 MAX_RANK = 100
 
-CLIENT_ID     = os.environ.get("NAVER_CLIENT_ID", "")
-CLIENT_SECRET = os.environ.get("NAVER_CLIENT_SECRET", "")
-
 
 def get_rank(keyword: str, product_id: str, max_rank: int = 100):
     """
-    네이버 쇼핑 검색 API로 특정 상품의 순위와 이미지 URL을 반환.
+    네이버 쇼핑 검색 결과에서 특정 상품의 순위와 이미지 URL을 반환.
     Returns: (rank: int | None, image: str | None)
     """
-    headers = {
-        "X-Naver-Client-Id": CLIENT_ID,
-        "X-Naver-Client-Secret": CLIENT_SECRET,
-    }
-
-    display = 100
-    start = 1
-    found_count = 0
-
-    while found_count < max_rank:
-        params = {
-            "query": keyword,
-            "display": display,
-            "start": start,
-            "sort": "sim",
-        }
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        context = browser.new_context(
+            user_agent=(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/124.0.0.0 Safari/537.36"
+            ),
+            locale="ko-KR",
+        )
+        page = context.new_page()
+        rank = 0
+        image_url = None
 
         try:
-            resp = requests.get(
-                "https://openapi.naver.com/v1/search/shop.json",
-                headers=headers,
-                params=params,
-                timeout=10,
-            )
-            resp.raise_for_status()
+            for page_num in range(1, 4):  # 최대 3페이지 (약 120개)
+                url = (
+                    f"https://search.shopping.naver.com/search/all"
+                    f"?query={quote(keyword)}&sort=sim"
+                    f"&pagingIndex={page_num}&pagingSize=40"
+                )
+                page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                page.wait_for_timeout(random.randint(2000, 3500))
+
+                items = page.query_selector_all('[class*="basicList_item"]')
+                if not items:
+                    print(f"    ⚠️  상품 목록을 찾을 수 없음 (페이지 {page_num})")
+                    break
+
+                for item in items:
+                    rank += 1
+                    links = item.query_selector_all("a[href]")
+                    for link in links:
+                        href = link.get_attribute("href") or ""
+                        if product_id in href:
+                            img = item.query_selector("img")
+                            if img:
+                                image_url = img.get_attribute("src")
+                            return rank, image_url
+
+                    if rank >= max_rank:
+                        return None, None
+
+                time.sleep(random.uniform(1.5, 2.5))
+
         except Exception as e:
-            print(f"    ⚠️  요청 실패: {e}")
-            return None, None
-
-        items = resp.json().get("items", [])
-        if not items:
-            break
-
-        for item in items:
-            found_count += 1
-            link = item.get("link", "")
-            product_id_field = str(item.get("productId", ""))
-
-            if product_id in link or product_id in product_id_field:
-                image = item.get("image", None)
-                return found_count, image
-
-            if found_count >= max_rank:
-                return None, None
-
-        start += display
-        if start > 1000:
-            break
-
-        time.sleep(random.uniform(0.3, 0.7))
+            print(f"    ⚠️  스크래핑 오류: {e}")
+        finally:
+            browser.close()
 
     return None, None
 
@@ -141,7 +138,6 @@ def main():
             else:
                 print(f"     ❌ {MAX_RANK}위 밖")
 
-            # 이미지가 아직 없고, 이번 검색에서 찾았으면 저장
             if not has_image and image:
                 product["image"] = image
                 has_image = True
