@@ -50,21 +50,19 @@ def get_rank(keyword: str, product_id: str, max_rank: int = 100):
                 page.goto(url, wait_until="domcontentloaded", timeout=30000)
                 page.wait_for_timeout(random.randint(2000, 3500))
 
-                items = page.query_selector_all('[class*="basicList_item"]')
+                items = page.query_selector_all('[class*="product_item"]')
                 if not items:
                     print(f"    ⚠️  상품 목록을 찾을 수 없음 (페이지 {page_num})")
                     break
 
                 for item in items:
                     rank += 1
-                    links = item.query_selector_all("a[href]")
-                    for link in links:
-                        href = link.get_attribute("href") or ""
-                        if product_id in href:
-                            img = item.query_selector("img")
-                            if img:
-                                image_url = img.get_attribute("src")
-                            return rank, image_url
+                    html = item.inner_html()
+                    if product_id in html:
+                        img = item.query_selector("img")
+                        if img:
+                            image_url = img.get_attribute("src")
+                        return rank, image_url
 
                     if rank >= max_rank:
                         return None, None
